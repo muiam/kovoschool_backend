@@ -1,0 +1,1502 @@
+import json
+from django.http import Http404
+from rest_framework.decorators import api_view ,APIView,permission_classes,authentication_classes
+from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+from .permissions import IsFinance, IsHeadTeacher, IsHeadTeacherOrTeacher, IsTeacher
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from .models import AcademicYear, CarryForward, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Payslip, School, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year, Report
+from django.contrib.auth import logout
+
+from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
+from rest_framework import status
+from django.db.models import Q
+from django.db.models import Count,Sum,F,IntegerField
+from django.db.models.functions import Cast
+
+from . import models
+
+# Create your views here.
+
+@api_view(['GET'])
+def test(request):
+    return Response("You are set dev")
+
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
+
+
+
+class LogoutView(APIView):
+    def post(self, request):
+        logout(request)
+        return Response({"detail": "Successfully logged out."})
+
+
+
+class RegisterTeacher(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacher]
+    def post(self, request, format=None):
+        try:
+
+            serializer = RegisterTeacherSerializer(data=request.data, context={'request': request})
+            if serializer.is_valid():
+                # Get the current user's school
+                current_user = request.user
+                # Set the school of the new user to be the same as the school of the current user
+                serializer.validated_data['school'] = current_user.school
+                serializer.validated_data['type'] = "teacher"
+                user = serializer.save()
+                user.set_password(serializer.validated_data['password'])
+                user.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            print(serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+
+    def get(self,request):
+        school =request.user.school.id
+        allTeachers = User.objects.filter(type='teacher', school =school)[:10]
+        serializedData = UserSerializer(allTeachers,many =True)
+        return Response(serializedData.data , status=status.HTTP_200_OK)
+    
+
+
+class RegisterParent(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacher]
+    def post(self, request, format=None):
+        try:
+
+            serializer = RegisterParentSerializer(data=request.data, context={'request': request})
+            if serializer.is_valid():
+                # Get the current user's school
+                current_user = request.user
+                # Set the school of the new user to be the same as the school of the current user
+                serializer.validated_data['school'] = current_user.school
+                serializer.validated_data['type'] = "parent"
+                user = serializer.save()
+                user.set_password(serializer.validated_data['password'])
+                user.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            print(serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+
+    def get(self,request):
+        school =request.user.school.id
+        allParents = User.objects.filter(type='parent', school =school)[:10]
+        serializedData = UserSerializer(allParents,many =True)
+        return Response(serializedData.data , status=status.HTTP_200_OK)
+
+
+
+
+
+
+#api for searching
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacher])
+def searchTeachers(request):
+    school_id = request.user.school.id
+    search_term = request.query_params.get('q', '').strip()
+
+    if search_term:
+        query = Q(school=school_id, type='teacher') & (Q(email__icontains=search_term) | Q(first_name__icontains=search_term) | Q(second_name__icontains=search_term))
+
+        teachers = User.objects.filter(query)
+        serializer = UserSerializer(teachers, many=True)
+        return Response(serializer.data)
+    else:
+        return Response([])
+    
+
+#api for searching
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacher])
+def searchParents(request):
+    school_id = request.user.school.id
+    search_term = request.query_params.get('q', '').strip()
+
+    if search_term:
+        query = Q(school=school_id, type='parent') & (Q(email__icontains=search_term) | Q(first_name__icontains=search_term) | Q(second_name__icontains=search_term))
+
+        parents = User.objects.filter(query)
+        serializer = UserSerializer(parents, many=True)
+        return Response(serializer.data)
+    else:
+        return Response([])
+
+
+@api_view(['PUT'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacher])
+def deactivateUser(request):
+    user_email = request.query_params.get('email', '').strip()
+    try:
+        user = User.objects.get(email=user_email)
+        if user.is_active :
+            user.is_active =False
+            user.save()
+            return Response({"message": f"User {user_email} has been deactivated."}, status=200)
+        user.is_active=True
+        user.save()
+        return Response({"message": f"User {user_email} has been deactivated."}, status=200)
+    except User.DoesNotExist:
+        return Response({"error": f"User with email {user_email} does not exist."}, status=404)
+
+class RegisterStudent(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacher]
+    
+    def post(self, request, format=None):
+        serializer = RegisterStudentSerializer(data=request.data, context={'request': request})
+        current_user = request.user
+        if serializer.is_valid():
+            serializer.validated_data['school'] = current_user.school
+            serializer.save()
+            return Response(serializer.data , status=status.HTTP_201_CREATED)
+        print(serializer.errors)
+    
+        
+        return Response(serializer.errors , status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self, request):
+        school_id = request.user.school.id
+        students = Student.objects.filter(school=school_id)
+        serialized_data = RegisterStudentSerializer(students, many=True)
+        
+        # Add the class name (level name) to each serialized student object
+        for data in serialized_data.data:
+            level_id = data['current_level']
+            level_name = Level.objects.get(id=level_id).name
+            level_stream = Level.objects.get(id=level_id).stream
+            data['level_name'] = level_name
+            data['level_stream'] = level_stream
+        
+        return Response(serialized_data.data, status=status.HTTP_200_OK)
+
+class Levels(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacherOrTeacher | IsFinance]
+    
+    def get(self, request):
+        school =request.user.school.id
+        allLevels = Level.objects.filter(school =school).order_by('-id')
+        serializedData = LevelSerializer(allLevels,many =True)
+        return Response(serializedData.data , status=status.HTTP_200_OK)
+    
+class AcademicYears(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacherOrTeacher |IsFinance]
+    
+    def get(self, request):
+        allYears = AcademicYear.objects.all().order_by('-id')
+        serializedData = AcademicYearsSerializer(allYears,many =True)
+        return Response(serializedData.data , status=status.HTTP_200_OK)
+class Terms(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacherOrTeacher | IsFinance]
+    
+    def get(self, request):
+        year_id = request.query_params.get('year')
+        if not year_id:
+            raise Http404("Year ID parameter is required")
+
+        allTerms = Term.objects.filter(year=year_id).order_by('-id')
+        serializedData = TermSerializer(allTerms, many=True)
+        return Response(serializedData.data, status=status.HTTP_200_OK)
+class Exams (APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacherOrTeacher]
+    
+    def get(self, request):
+        year_id = request.query_params.get('year')
+        term_id = request.query_params.get('term')
+        if not year_id:
+            raise Http404("Year ID parameter is required")
+
+        school =request.user.school.id
+        allExams = Exam.objects.filter(school =school,term =term_id ,year =year_id).order_by('-id')
+        serializedData = ExamSerializer(allExams,many =True)
+        return Response(serializedData.data , status=status.HTTP_200_OK)
+    
+class Subjects(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacherOrTeacher]
+    
+    def get(self, request):
+        school_id = request.user.school.id
+        all_subjects = Subject.objects.filter(school=school_id)
+        serialized_data = SubjectSerializer(all_subjects, many=True)
+        
+        response_data = []
+        
+        for data in serialized_data.data:
+            level_id = data['level']
+            level = Level.objects.get(id=level_id)
+            level_name = level.name
+            level_stream = level.stream
+            
+            if level_stream is not None:
+                data['level_name'] = level_name
+                data['level_stream'] = level_stream
+                response_data.append(data)
+            data['level_name'] = level_name
+        response_data.append(data)
+        
+        if response_data:
+            return Response(response_data, status=status.HTTP_200_OK)
+        else:
+            return Response(response_data,status=status.HTTP_200_OK)
+        
+class FreeSubjects(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacher]
+    
+    def get(self, request):
+        school_id = request.user.school.id
+        all_subjects = Subject.objects.filter(school=school_id, assigned=False)
+        serialized_data = SubjectSerializer(all_subjects, many=True).data
+        
+        response_data = []
+        
+        for data in serialized_data:
+            level_id = data['level']
+            level = Level.objects.get(id=level_id)
+            level_name = level.name
+            level_stream = level.stream
+            
+            if level_stream is not None:
+                data['level_name'] = level_name
+                data['level_stream'] = level_stream
+            else:
+                data['level_name'] = level_name
+                
+            response_data.append(data)
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+        
+class AssignSubject(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacher]
+
+    def post(self, request, format=None):
+        serializer = TeacherSubjectSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()        
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+    def get (self, request):
+        teacher_id =request.query_params.get('teacher')
+        if not teacher_id:
+            return Response({"detail": "Missing teacher ID"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            teacher = User.objects.get(pk=teacher_id, school=request.user.school.id, type='teacher')
+        except User.DoesNotExist:
+            return Response({"detail": "Teacher not found"}, status=status.HTTP_404_NOT_FOUND)
+
+      
+        assigned_subjects = TeacherSubject.objects.filter(teacher=teacher).order_by('-created')
+        # Serialize the queryset
+        serializer = AssignedSubjectSerializer(assigned_subjects, many=True)
+        # Return the serialized data
+        return Response(serializer.data)
+    
+class TeacherSubjects(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsTeacher]
+    def get(self, request):
+        teacherSubjects =TeacherSubject.objects.filter(teacher = request.user).order_by('-created')
+        serializer = AssignedSubjectSerializer(teacherSubjects, many=True)
+        return Response(serializer.data)
+
+class StudentsMarksFetch(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacherOrTeacher]
+    def post(self, request):
+        school_id = request.user.school.id
+        year = request.data.get('year')
+        term = request.data.get('term')
+        exam = request.data.get('exam')
+        subject = request.data.get('subject')
+        level = request.data.get('level')
+
+        students = Student.objects.filter(current_level=level, school=school_id, active=True).order_by('-id')
+        if students:
+            student_data_list = []
+            for student in students:
+                examCheck = ExamResult.objects.filter(exam=exam, subject=subject, student=student, year=year, term=term, school=school_id)
+                if not examCheck:
+                    student_details = Student.objects.get(admission_number = student.admission_number)
+                    student_data = {
+                        'admission_number': student_details.admission_number,
+                        'name': student_details.name,
+                        'id': student_details.id
+                    }
+                    print("student data is" , student_data)
+                    student_data_list.append(student_data)
+
+            if student_data_list:
+                # Directly pass the list of dictionaries to the serializer
+                serializer = GetStudentForMarksSerializer(data=student_data_list, many=True)
+                if serializer.is_valid():
+                    print("serilaized data is ", serializer.data)
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+                else:
+                    print(serializer.errors)
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({"error": "No students found for the given criteria."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response({"error": "No students found."}, status=status.HTTP_403_FORBIDDEN)
+
+
+
+    
+        
+
+
+class BulkInsertMarksView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacherOrTeacher]
+    def post(self, request, *args, **kwargs):
+        try:
+            data = json.loads(request.body)
+            exam_id = data.get('exam_id')
+            subject_id = data.get('subject_id')
+            year_id = data.get('year_id')
+            term_id = data.get('term_id')
+            level_id = data.get('level_id')
+            marks = data.get('marks')
+            school_id = request.user.school.id
+            school = School.objects.get(id=school_id)
+            saved_results = []
+            for mark in marks:
+                student_id = mark.get('admission_number')
+                score = mark.get('mark')
+                if score is not None:
+                    grade = self.determine_grade(score)
+                    student = Student.objects.get(admission_number=student_id)
+                    exam = Exam.objects.get(id=exam_id)
+                    subject = Subject.objects.get(id=subject_id)
+                    year = AcademicYear.objects.get(id=year_id)
+                    term = Term.objects.get(id=term_id)
+                    level = Level.objects.get(id=level_id)
+                    student = Student.objects.get(admission_number=student_id)
+                    print(student,exam,subject,year,term,level,score)
+
+                    exam_saving = ExamResult()
+                    exam_saving.school = school
+                    exam_saving.exam = exam
+                    exam_saving.subject = subject
+                    exam_saving.year = year
+                    exam_saving.term= term
+                    exam_saving.level = level
+                    exam_saving.student = student
+                    exam_saving.score = score
+                    exam_saving.grade = grade
+                    try:
+                        exam_saving.save()
+                        print("saved")
+                    except Exception as e:
+                        # Handle exceptions during save
+                        print("Error saving exam result:", e)
+                    saved_results.append(exam_saving)
+
+                   
+            serializer = ExamResultsSerializer(saved_results, many=True)
+            serialized_data = serializer.data
+            print("data sent is ",serialized_data)
+            return Response(data=serialized_data, status=status.HTTP_201_CREATED)
+        
+                   
+
+        except Exception as e:
+            print(str(e))
+            return Response({'error': str(e)}, status=400)
+        
+    def determine_grade(self, score):
+            """Determine grade based on score."""
+            try:
+                score = float(score)  # Ensure score is in correct format to compare
+            except ValueError:
+                return 'Invalid'  # or handle invalid score format as needed
+
+            if 80 <= score <= 100:
+                return 'EE'
+            elif 50 <= score < 79:
+                return 'ME'
+            elif 30 <= score < 49:
+                return 'AE'
+            else:
+                return 'BE'
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.db.models import Sum, F
+from django.db.models.functions import Cast
+from django.db.models import IntegerField
+from .models import ExamResult
+from .serializers import SubjectScoreSerializer
+
+class RankStudentsAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsHeadTeacherOrTeacher]
+    def get(self, request, year_id, term_id, exam_id,level_id):
+        # Fetch subject scores along with student details and subject names
+
+        print("year",year_id, "term", term_id, "exam", exam_id, "grade", level_id)
+        exam_results = ExamResult.objects.filter(
+            year_id=year_id,
+            term_id=term_id,
+            level_id=level_id,
+            exam_id=exam_id
+        ).select_related('student', 'subject').annotate(
+            numeric_score=Cast('score', output_field=IntegerField())
+        ).values('student__admission_number', 'student__name', 'student_id').annotate(
+            total_score=Sum('numeric_score')
+        ).order_by('-total_score')
+
+        # Retrieve subject scores and calculate total marks for each student
+        detailed_scores = []
+        for result in exam_results:
+            student_id = result['student_id']
+            student_name = result['student__name']
+            admission_number = result['student__admission_number']
+
+            subject_scores = ExamResult.objects.filter(
+                student_id=student_id,
+                year_id=year_id,
+                term_id=term_id,
+                level_id=level_id,
+                exam_id=exam_id
+            ).values_list('subject__name', 'score')
+
+            subjects_dict = {}
+            total_marks = 0
+            for subject_name, score in subject_scores:
+                score_int = int(score)
+                subjects_dict[subject_name] = score_int
+                total_marks += score_int
+
+            detailed_scores.append({
+                'student': {'admission_number': admission_number, 'name': student_name},
+                'subject_scores': subjects_dict,
+                'total_marks': total_marks,
+            })
+
+        # Serialize the data using SubjectScoreSerializer
+        serializer = SubjectScoreSerializer(detailed_scores, many=True)
+
+        return Response(serializer.data)
+            
+
+from django.db.models import Avg
+from django.db.models.functions import Cast
+from django.db.models import F
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])  # Use JWT authentication
+@permission_classes([IsHeadTeacherOrTeacher])  # Apply custom permission class
+
+def calculate_average_percentage(request, year_id, term_id, exam_id, level_id):
+    # Convert exam_id to integer
+    exam_id = int(exam_id)
+
+    # Get previous exam ID
+    previous_exam_id = exam_id - 1
+
+    # Calculate total marks for each student in the current exam
+    current_total_marks = ExamResult.objects.filter(
+        exam__id=exam_id,
+        year__id=year_id,
+        term__id=term_id,
+        level__id=level_id
+    ).values('student').annotate(total_marks=Sum('score'))
+
+    # Calculate total marks for each student in the previous exam
+    previous_total_marks = ExamResult.objects.filter(
+        exam__id=previous_exam_id,
+        year__id=year_id,
+        term__id=term_id,
+        level__id=level_id
+    ).values('student').annotate(total_marks=Sum('score'))
+
+    # Calculate average total marks for each student in the current exam
+    num_students_current = current_total_marks.count()
+    total_marks_current = sum(item['total_marks'] for item in current_total_marks)
+    average_marks_current = total_marks_current / num_students_current if num_students_current > 0 else 0
+
+    # Calculate average total marks for each student in the previous exam
+    num_students_previous = previous_total_marks.count()
+    total_marks_previous = sum(item['total_marks'] for item in previous_total_marks)
+    average_marks_previous = total_marks_previous / num_students_previous if num_students_previous > 0 else 0
+
+    # Calculate percentage change in average marks
+    if average_marks_previous > 0:
+        percentage_change = ((average_marks_current - average_marks_previous) / average_marks_previous) * 100
+    else:
+        percentage_change = None
+
+    return Response({
+        'average_marks_current': average_marks_current,
+        'average_marks_previous': average_marks_previous,
+        'percentage_change': percentage_change
+    })
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])  # Use JWT authentication
+@permission_classes([IsHeadTeacherOrTeacher])  # Apply custom permission class
+def find_most_improved_students(request, year_id, term_id, exam_id, level_id):
+    # Convert exam_id to integer
+    exam_id = int(exam_id)
+
+    # Get previous exam ID
+    previous_exam_id = exam_id - 1
+    school_id = request.user.school.id
+
+    # Get subjects and students for better response details
+    subjects = Subject.objects.filter(school_id=school_id, level_id=level_id)
+    students = Student.objects.filter(school_id=school_id, current_level_id=level_id)
+    # print(students)
+    # Calculate total marks for each student in the current exam for each subject
+    current_subject_totals = ExamResult.objects.filter(
+        exam__id=exam_id,
+        year__id=year_id,
+        term__id=term_id,
+        level__id=level_id
+    ).values('student', 'subject').annotate(total_marks=Sum('score'))
+
+    # Calculate total marks for each student in the previous exam for each subject
+    previous_subject_totals = ExamResult.objects.filter(
+        exam__id=previous_exam_id,
+        year__id=year_id,
+        term__id=term_id,
+        level__id=level_id
+    ).values('student', 'subject').annotate(total_marks=Sum('score'))
+    # print("current total" ,current_subject_totals , "previous total", previous_subject_totals)
+    # Find the most improved student per subject
+    most_improved_per_subject = {}
+    for current_total in current_subject_totals:
+        student_id = current_total['student']
+        subject_id = current_total['subject']
+        current_marks = current_total['total_marks']
+        
+        # Check if the student had a score for the subject in the previous exam
+        previous_marks = next((item['total_marks'] for item in previous_subject_totals if item['student'] == student_id and item['subject'] == subject_id), None)
+        if previous_marks is not None:
+            improvement = current_marks - previous_marks
+            percentage_improvement = (improvement / previous_marks) * 100 if previous_marks != 0 else 0
+            
+            # Check if this student is the most improved for this subject so far
+            if improvement > 0 and (subject_id not in most_improved_per_subject or improvement > most_improved_per_subject[subject_id]['improvement']):
+                most_improved_per_subject[subject_id] = {
+                    'subject_id': subject_id,
+                    'subject_name': subjects.get(id=subject_id).name,
+                    'student_name': Student.objects.get(id=student_id).name,
+                    'admission_number': Student.objects.get(id=student_id).admission_number,
+                    'improvement': improvement,
+                    'percentage_improvement': percentage_improvement
+                }
+
+    return Response({'most_improved_per_subject': most_improved_per_subject})
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])  # Use JWT authentication
+@permission_classes([IsHeadTeacherOrTeacher])  # Apply custom permission class
+
+def find_least_improved_students(request, year_id, term_id, exam_id, level_id):
+    # Convert exam_id to integer
+    exam_id = int(exam_id)
+
+    # Get previous exam ID
+    previous_exam_id = exam_id - 1
+    school_id = request.user.school.id
+
+    # Get subjects and students for better response details
+    subjects = Subject.objects.filter(school_id=school_id, level_id=level_id)
+    students = Student.objects.filter(school_id=school_id, current_level_id=level_id)
+
+    # Calculate total marks for each student in the current exam for each subject
+    current_subject_totals = ExamResult.objects.filter(
+        exam__id=exam_id,
+        year__id=year_id,
+        term__id=term_id,
+        level__id=level_id
+    ).values('student', 'subject').annotate(total_marks=Sum('score'))
+
+    # Calculate total marks for each student in the previous exam for each subject
+    previous_subject_totals = ExamResult.objects.filter(
+        exam__id=previous_exam_id,
+        year__id=year_id,
+        term__id=term_id,
+        level__id=level_id
+    ).values('student', 'subject').annotate(total_marks=Sum('score'))
+
+    # Find the most improved student per subject
+    most_improved_per_subject = {}
+    for current_total in current_subject_totals:
+        student_id = current_total['student']
+        subject_id = current_total['subject']
+        current_marks = current_total['total_marks']
+        
+        # Check if the student had a score for the subject in the previous exam
+        previous_marks = next((item['total_marks'] for item in previous_subject_totals if item['student'] == student_id and item['subject'] == subject_id), None)
+        if previous_marks is not None:
+            improvement = current_marks - previous_marks
+            percentage_improvement = (improvement / previous_marks) * 100 if previous_marks != 0 else 0
+            
+            # Check if this student has a negative improvement for this subject
+            if improvement < 0:
+                if subject_id not in most_improved_per_subject or improvement < most_improved_per_subject[subject_id]['improvement']:
+                    most_improved_per_subject[subject_id] = {
+                        'subject_id': subject_id,
+                        'subject_name': subjects.get(id=subject_id).name,
+                        'student_name': students.get(id=student_id).name,
+                        'admission_number': students.get(id=student_id).admission_number,
+                        'improvement': improvement,
+                        'percentage_improvement': percentage_improvement
+                    }
+
+    return Response({'least_improved_per_subject': most_improved_per_subject})
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacherOrTeacher])
+def find_student_scores(request, year_id, term_id, exam_id, level_id, student_id):
+    try:
+        # Filter exams for the student within the academic year and term
+        queryset = ExamResult.objects.filter(
+            student__id=student_id,
+            exam__id = exam_id,
+            year__id=year_id,
+            term__id=term_id,
+            level__id=level_id,
+        )
+
+        # Calculate total marks for each student
+        total_marks = {}
+        for result in queryset:
+            total_marks[result.exam_id] = total_marks.get(result.exam_id, 0) + result.score
+
+        # Get previous total marks for the student
+        previous_total_marks = 0  # Initialize previous total marks
+        previous_queryset = ExamResult.objects.filter(
+            student__id=student_id,
+            level__id=level_id,
+            year__id=year_id,
+            term__id=term_id,
+            exam__id__lt=exam_id  # Filter exams before the current exam
+        )
+        for prev_result in previous_queryset:
+            previous_total_marks += prev_result.score
+
+        # Calculate percentage change in total marks
+        percentage_change = None
+        if previous_total_marks != 0:
+            percentage_change = ((total_marks[exam_id] - previous_total_marks) / previous_total_marks) * 100
+
+        # Fetch all exams for the student within the academic year
+        all_exams_queryset = ExamResult.objects.filter(
+        student__id=student_id,
+        year__id=year_id,
+        level__id=level_id,
+         ).values('exam__name').annotate(total_marks=Sum('score'))
+
+        # Map exam names to exam-wise totals
+        exam_wise_totals = {exam['exam__name']: exam['total_marks'] for exam in all_exams_queryset}
+
+        # Serialize data with ExamResultCompareSerializer
+        serializer = ExamResultCompareSerializer(queryset, many=True)
+        serialized_data = serializer.data
+
+        # Prepare response data with total marks, exam-wise totals, and percentage change
+        response_data = {
+            'exam_results': serialized_data,
+            'total_marks': total_marks.get(exam_id, 0),  # Get total marks for the current exam
+            'previous_total_marks': previous_total_marks,
+            'percentage_change': percentage_change,
+            'exam_wise_totals': exam_wise_totals,
+        }
+
+        return Response(response_data)
+    except Exception as e:
+        return Response({"error": str(e)}, status=400)
+    
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacherOrTeacher])
+def get_students_per_level(request, level_id):
+    school = request.user.school.id
+    students = Student.objects.filter(school= school, current_level = level_id, active = True)
+    serializer = StudentSerializer(students, many = True)
+    return Response(data= serializer.data , status= 200)
+class Payroll(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsFinance]
+
+    def get(self, request, year, month):
+        school_id = request.user.school.id
+        all_payrolls = Payslip.objects.filter(year=year, month=month, school=school_id)
+        serializer = PayslipsSerializer(all_payrolls, many=True)
+
+        # Calculate totals for all payrolls
+        all_total_gross_salary = all_payrolls.aggregate(total_gross_salary=Sum('gross_salary'))['total_gross_salary']
+        all_total_net_salary = all_payrolls.aggregate(total_net_salary=Sum('net_salary'))['total_net_salary']
+        all_overall_deductions = all_payrolls.aggregate(total_deductions=Sum('total_deductions'))['total_deductions']
+
+        # Include totals in the response
+        response_data = {
+            'payrolls': serializer.data,
+            'totals': {
+                'total_gross_salary': all_total_gross_salary,
+                'total_net_salary': all_total_net_salary,
+                'total_deductions': all_overall_deductions,
+            }
+        }
+
+        return Response(data=response_data, status=status.HTTP_200_OK)
+
+
+class NewPayslip(APIView):
+    def post(self, request, format=None):
+        # Get the user's school
+        user_school = request.user.school.id  # Assuming user's school is associated with the user
+
+        # Add the user's school to the request data
+        request.data['school'] = user_school  # Assuming school is represented by an id
+
+        # Create serializer with modified data
+        serializer = NewPaySlipSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        elif 'non_field_errors' in serializer.errors and serializer.errors['non_field_errors'][0] == "An employee can have only one payslip per month.":
+            # If the error is related to the uniqueness constraint, return a custom error message
+            return Response({"error": "An employee can have only one payslip per month."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # For other validation errors, return the standard error response
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+
+@api_view(["GET"])
+def get_year(request):
+    years = Year.objects.all()
+    serializer = YearsSerializer(years , many = True)
+    return Response(data= serializer.data , status= 200)
+
+@api_view(["GET"])
+def get_month(request):
+    months = Month.objects.all()
+    serializer = MonthsSerializer(months , many = True)
+    return Response(data= serializer.data , status= 200)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def all_employees(request):
+    school =request.user.school.id
+    allEmployees = User.objects.filter(school =school , is_active = True)
+    serializedData = UserSerializer(allEmployees,many =True)
+    return Response(serializedData.data , status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def employee(request, id):
+    school =request.user.school.id
+    employee = User.objects.filter(email = id,school =school , is_active = True)
+    serializedData = UserSerializer(employee,many =True)
+    return Response(serializedData.data , status=status.HTTP_200_OK)
+
+from django.db.models import Sum
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance | IsHeadTeacherOrTeacher])
+def my_payslip(request, year=None):
+    if year is not None:
+        payslips = Payslip.objects.filter(year=year, employee=request.user.email)
+    else:
+        payslips = Payslip.objects.filter(employee=request.user.email)
+    
+    # Filter payslips where pay is True and sum their net salaries
+    total_net_salary = payslips.filter(paid=True).aggregate(total_net_salary=Sum('net_salary'))['total_net_salary'] or 0
+    
+    serializedData = PayslipsSerializer(payslips, many=True)
+    response_data = {
+        'payslips': serializedData.data,
+        'total_net_salary': total_net_salary
+    }
+    return Response(response_data)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance | IsHeadTeacherOrTeacher])
+def my_single_payslip(request, payslip):
+    user = request.user.email
+    payslip = Payslip.objects.filter(employee = user, pk = payslip)
+    if payslip:
+        serializedData = PayslipsSerializer(payslip , many = True)
+        return Response(data = serializedData.data , status=status.HTTP_200_OK)
+    else:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance | IsHeadTeacherOrTeacher])
+def all_school_fees(request, year=None, term=None, grade=None):
+    school_id = request.user.school.id
+    fees = Fee.objects.filter(school=school_id)
+
+    if year is not None:
+        fees = fees.filter(academic_year=year)
+    if term is not None:
+        fees = fees.filter(term=term)
+    if grade is not None:
+        fees = fees.filter(level=grade)
+    serialized_data = FeeSerializer(fees, many=True)
+    return Response(data=serialized_data.data, status=status.HTTP_200_OK)
+
+
+from django.db.models import Sum
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance | IsHeadTeacherOrTeacher])
+def get_unpaid_fee_students(request, year_id, term_id, level_id, fee_id):
+    try:
+        # Retrieve the school ID from the authenticated user
+        school_id = request.user.school.id
+        
+        # Filter students based on the provided level and school
+        students = Student.objects.filter(current_level=level_id, school=school_id)
+        
+        # List to store unpaid students
+        unpaid_students = []
+        
+        # Iterate over each student
+        for student in students:
+            # Check if the student has any fee payment records for the given year, term, and fee ID
+            fee_payments = FeePayment.objects.filter(
+                student=student,
+                fee__academic_year_id=year_id,
+                fee__term_id=term_id,
+                fee_id=fee_id
+            )
+            
+            # Calculate total paid and total fee amount for the student
+            total_paid = fee_payments.aggregate(Sum('amount_paid'))['amount_paid__sum'] or 0
+            
+            try:
+                # Retrieve the fee object
+                fee = Fee.objects.get(id=fee_id, level=level_id, academic_year=year_id, term=term_id)
+                total_amount = fee.amount
+            except Fee.DoesNotExist:
+                return Response({'error': 'Fee not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Determine the balance for the student
+            remaining_balance = total_amount - total_paid
+            
+            # Check if the student hasn't paid or has a fee balance
+            if remaining_balance > 0 or total_paid < total_amount:
+                unpaid_students.append({
+                    'student_id': student.id,
+                    'student_name': student.name,
+                    'balance': remaining_balance
+                })
+        
+        # Return unpaid students
+        return Response({'unpaid_students': unpaid_students}, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance | IsHeadTeacherOrTeacher])
+def fetch_student_carry_foward(request , student):
+    try:
+        total_unused_amount = CarryForward.objects.get(student=student)
+        total_unused_amount = total_unused_amount.amount
+    except CarryForward.DoesNotExist:
+        total_unused_amount = 0
+    return Response(status=status.HTTP_200_OK , data={ 'total_unused' :total_unused_amount})
+
+
+import random
+import string
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def generate_receipt_number(request):
+    # Generate a 10-digit number
+    receipt_number = ''.join(random.choice('0123456789') for _ in range(10))
+    
+    # Generate 2 random alphabets
+    alphabets = ''.join(random.choice(string.ascii_uppercase) for _ in range(2))
+    
+    # Concatenate the 10-digit number with the 2 random alphabets
+    final_receipt_number = alphabets+receipt_number
+
+    return Response(status=status.HTTP_200_OK , data=final_receipt_number)
+
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def fee_payment_over(request):
+    try:
+        data = json.loads(request.body)
+        student_id = data.get('student')
+        fee_id = data.get('fee')
+        amount_paid = data.get('amount_paid')
+        receipt_number = data.get('receipt_number')
+        level_id = data.get('level')
+        academic_year_id = data.get('academic_year')
+        term_id = data.get('term')
+        overpay = data.get('overpay', False)
+            #instances
+        student = Student.objects.get(pk=student_id)
+        fee = Fee.objects.get(pk=fee_id)
+        level = Level.objects.get(pk=level_id)
+        academic_year = AcademicYear.objects.get(pk=academic_year_id)
+        term = Term.objects.get(pk=term_id)
+
+        fee_paid_for = Fee.objects.get(id= fee_id , level =level_id , academic_year =academic_year ,term=term)
+        print("feed needed",fee_paid_for.amount)
+
+        fee_payments = FeePayment.objects.filter(
+                student=student,
+                academic_year=academic_year_id,
+                term=term_id,
+                fee=fee_id,
+                level = level_id
+            )
+
+            # Calculate total paid and total fee amount for the student
+        total_paid = fee_payments.aggregate(Sum('amount_paid'))['amount_paid__sum'] or 0
+        print("already paid", total_paid)
+        new_total = amount_paid + total_paid
+        balance =0
+        if new_total >= fee_paid_for.amount:
+            balance = new_total -fee_paid_for.amount
+            paid = fee_paid_for.amount -total_paid
+            print("you are paying only", paid)
+            print("what you are paying + already paid",new_total)
+            print("overpayment" , balance)
+            
+            print("you are paying", paid)
+            fee_payment = FeePayment.objects.create(
+            student=student,
+            fee=fee,
+            amount_paid=paid,
+            receipt_number=receipt_number,
+            level=level,
+            academic_year=academic_year,
+            term=term,
+            overpay = balance
+            )
+            fee_payment.save()
+        try:
+            total_unused_amount = CarryForward.objects.get(student=student)
+            total_unused_amount.amount = balance
+            total_unused_amount.save()
+        except CarryForward.DoesNotExist:
+            total_unused_amount= CarryForward.objects.create(student=student, amount=0)
+            
+        else:
+            #print("there will be a balance")
+            fee_payment = FeePayment.objects.create(
+            student=student,
+            fee=fee,
+            amount_paid=amount_paid,
+            receipt_number=receipt_number,
+            level=level,
+            academic_year=academic_year,
+            term=term
+            )
+            fee_payment.save()
+            try:
+                total_unused_amount = CarryForward.objects.get(student=student)
+                total_unused_amount.amount = balance
+                total_unused_amount.save()
+            except CarryForward.DoesNotExist:
+                total_unused_amount= CarryForward.objects.create(student=student, amount=0)
+            return Response(status=status.HTTP_201_CREATED)
+    except Exception as e:
+        print(str(e))
+        return Response({'error': str(e)}, status=400)
+
+    
+    return Response(status=status.HTTP_200_OK)
+    
+
+
+
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def fee_payment_direct(request):
+    try:
+        data = json.loads(request.body)
+        student_id = data.get('student')
+        fee_id = data.get('fee')
+        amount_paid = data.get('amount_paid')
+        receipt_number = data.get('receipt_number')
+        level_id = data.get('level')
+        academic_year_id = data.get('academic_year')
+        term_id = data.get('term')
+            #instances
+        student = Student.objects.get(pk=student_id)
+        fee = Fee.objects.get(pk=fee_id)
+        level = Level.objects.get(pk=level_id)
+        academic_year = AcademicYear.objects.get(pk=academic_year_id)
+        term = Term.objects.get(pk=term_id)
+        school = request.user.school.id
+        fee_paid_for = Fee.objects.get(id= fee_id , school=school,  level =level_id , academic_year =academic_year ,term=term)
+        total_paid = FeePayment.objects.filter(
+            student = student,
+            student__current_level_id=level_id,
+            academic_year_id=academic_year,
+            term_id=term_id,
+            fee_id=fee_id
+        ).aggregate(total_paid=Sum('amount_paid'))['total_paid'] or 0
+        new_total = total_paid+amount_paid
+        #overpay detected
+        if new_total >fee_paid_for.amount:
+            overpay = new_total-fee_paid_for.amount
+            paid = fee_paid_for.amount - total_paid
+            fee_payment = FeePayment.objects.create(
+            student=student,
+            fee=fee,
+            amount_paid=paid,
+            receipt_number=receipt_number,
+            level=level,
+            academic_year=academic_year,
+            term=term,
+            overpay = overpay
+            )
+            fee_payment.save()
+            try:
+                total_unused_amount = CarryForward.objects.get(student=student)
+                total_unused_amount.amount = overpay
+                total_unused_amount.save()
+            except CarryForward.DoesNotExist:
+                total_unused_amount= CarryForward.objects.create(student=student, amount=overpay)
+            return Response(status=status.HTTP_201_CREATED)
+        else:
+            fee_payment = FeePayment.objects.create(
+            student=student,
+            fee=fee,
+            amount_paid=amount_paid,
+            receipt_number=receipt_number,
+            level=level,
+            academic_year=academic_year,
+            term=term,
+            )
+            fee_payment.save()
+            return Response(status=status.HTTP_201_CREATED)
+
+
+    except Exception as e:
+        print(str(e))
+        return Response({'error': str(e)}, status=400)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def calculate_total_carryforward(request):
+    # Fetch all students
+    students = Student.objects.filter(school = request.user.school.id)
+    student_data = []
+
+    # Iterate through each student
+    for student in students:
+        # Check if there's a carryforward record for the student
+        carryforward_record = CarryForward.objects.filter(student=student).first()
+        if carryforward_record:
+            # If there's a carryforward record, fetch the amount
+            carryforward_amount = carryforward_record.amount
+            level = student.current_level
+            if level.stream:
+                level = f"{level.name} {level.stream}"
+            else:
+                level = level.name
+            student_data.append({
+                'id': student.id,
+                'name': student.name,
+                'Adm' :student.admission_number,
+                'level': level,
+                'carryforward_amount': carryforward_amount
+            })
+
+    # Calculate the total carryforward amount
+    total_carryforward = sum(entry['carryforward_amount'] for entry in student_data)
+
+    # Return the response with student data and total carryforward amount
+    return Response({'students': student_data, 'total_carryforward': total_carryforward}, status=status.HTTP_200_OK)
+
+
+
+from django.db.models import Count, F
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def display_student_balances(request, level_id, year_id, term_id, fee_id):
+    # Retrieve all students who belong to the specified level
+    school = request.user.school.id
+    students = Student.objects.filter(current_level_id=level_id , school = school)
+
+    # Retrieve the fee object
+    fee = Fee.objects.get(id=fee_id, school=school)
+
+    # Calculate the fee amount payable
+    fee_amount_payable = fee.amount
+
+    # Calculate the total number of students
+    total_students = students.count()
+
+    # Calculate the total amount payable (expected amount)
+    expected_amount = fee_amount_payable * total_students
+
+    # Calculate the total paid amount by all students for the specified fee
+    total_paid = FeePayment.objects.filter(
+        student__current_level_id=level_id,
+        academic_year_id=year_id,
+        term_id=term_id,
+        fee_id=fee_id
+    ).aggregate(total_paid=Sum('amount_paid'))['total_paid'] or 0
+
+    # # Calculate the total overpaid amount by all students for the specified fee
+    # total_overpaid = FeePayment.objects.filter(
+    #     student__current_level_id=level_id,
+    #     academic_year_id=year_id,
+    #     term_id=term_id,
+    #     fee_id=fee_id
+    # ).aggregate(total_overpaid=Sum('overpay'))['total_overpaid'] or 0
+
+    # Calculate the total balance of all students
+    total_balance = expected_amount-total_paid
+
+    # Calculate the percentage paid so far compared with expected
+    percentage_paid = (total_paid / expected_amount) * 100 if expected_amount != 0 else 0
+
+    # Construct the response
+    response_data = {
+        'totals': {
+            'expected_amount': expected_amount,
+            'total_balance': total_balance,
+            'total_paid': total_paid,
+            'percentage_paid': percentage_paid
+        }
+    }
+
+    # Construct the student balances list
+    student_balances = []
+    for student in students:
+        total_student_paid = FeePayment.objects.filter(
+            student=student,
+            academic_year_id=year_id,
+            term_id=term_id,
+            fee_id=fee_id
+        ).aggregate(total_paid=Sum('amount_paid'))['total_paid'] or 0
+
+        total_student_overpaid = FeePayment.objects.filter(
+            student=student,
+            academic_year_id=year_id,
+            term_id=term_id,
+            fee_id=fee_id
+        ).aggregate(total_overpaid=Sum('overpay'))['total_overpaid'] or 0
+
+        total_student_balance = fee_amount_payable-total_student_paid
+        level =student.current_level
+        if student.current_level.stream:
+            level = f"{student.current_level.name} {student.current_level.stream}"
+        else:
+            level= student.current_level.name
+        student_balances.append({
+            'required':fee_amount_payable,
+            'student_name': student.name,
+            'student_level':level,
+            'student_adm':student.admission_number,
+            'outstanding_balance': total_student_balance,
+            'total_paid': total_student_paid,
+            'overpaid': total_student_overpaid
+        })
+
+    response_data['student_balances'] = student_balances
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def get_transactions_summary(request):
+    # Get revenue and expenditure transactions
+    school_id = request.user.school.id
+    transactions = Transaction.objects.filter(school_id=school_id).filter(Q(type='revenue') | Q(type='expenditure'))
+    serializer = TransactionSerializer(transactions , many = True)
+    # Get sum of amounts for revenue transactions
+    revenue_sum = transactions.filter(type='revenue').aggregate(revenue_sum=Sum('amount'))['revenue_sum'] or 0
+
+    # Get sum of amounts for expenditure transactions
+    expenditure_sum = transactions.filter(type='expenditure').aggregate(expenditure_sum=Sum('amount'))['expenditure_sum'] or 0
+
+    data= {
+        'revenue_sum': revenue_sum,
+        'expenditure_sum': expenditure_sum,
+        'balance':revenue_sum -expenditure_sum,
+        'transactions': serializer.data
+       
+    }
+    return Response(data=data , status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def all_get_fee_balances(request,year, level=None):
+    school = request.user.school.id
+    academic_year_name = AcademicYear.objects.get(school=school, id=year)
+    academic_year_name = academic_year_name.name
+    if level is not None:
+        fee = FeeBalance.objects.filter(school=school, academic_year=year, paid=False, level=level)
+    else:
+        fee = FeeBalance.objects.filter(school=school, academic_year=year, paid=False)
+    total_amount = fee.aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+    serializer = FeeBalanceSerializer(fee , many=True)
+    data = {
+        'fee_balances': serializer.data,
+        'academic_year' :academic_year_name,
+        'total_amount': total_amount
+    }
+    return Response(data=data , status=status.HTTP_200_OK)
+
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def save_revenue(request):
+    school = request.user.school.id
+    school = School.objects.get(id=school)
+    data = json.loads(request.body)
+    amount = data.get('amount')
+    description = data.get('description')
+    receipt_number = data.get('receipt_number')
+    try:
+        Transaction.objects.create(
+            school = school,
+            amount=amount,
+            description=description,
+            receipt_number=receipt_number,
+            type ='revenue'
+        )
+        return Response(status= status.HTTP_201_CREATED)
+    except Exception as e:
+        print(str(e))
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+  
+
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def save_expenditure(request):
+    school = request.user.school.id
+    school = School.objects.get(id=school)
+    data = json.loads(request.body)
+    amount = data.get('amount')
+    description = data.get('description')
+    receipt_number = data.get('receipt_number')
+    try:
+        Transaction.objects.create(
+            school = school,
+            amount=amount,
+            description=description,
+            receipt_number=receipt_number,
+            type ='expenditure'
+        )
+        return Response(status= status.HTTP_201_CREATED)
+    except Exception as e:
+        print(str(e))
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+  
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacherOrTeacher])
+def all_weeks(request):
+    school = request.user.school.id
+    week = Week.objects.filter(school=school)
+    serializer = WeekSerializer(week, many = True)
+    return Response(data= serializer.data , status=status.HTTP_200_OK)
+
+class StudentReport(APIView):
+     authentication_classes = [JWTAuthentication]
+     permission_classes = [IsHeadTeacherOrTeacher]
+     def get(self,request,week =None , level=None):
+         school = request.user.school.id
+         report = Report.objects.filter(school =school)
+         if week is not None:
+                report = Report.objects.filter(school =school , week = week)
+         if level is not None:
+                report = Report.objects.filter(school=school,level = level)
+         if level is not None and week is not None:
+                 report = Report.objects.filter(school= school, level = level , week=week)
+         serializer = ReportSerializer(report , many = True)
+         return Response(data= serializer.data , status=status.HTTP_200_OK)
+class MyStudentReport(APIView):
+     authentication_classes = [JWTAuthentication]
+     permission_classes = [IsHeadTeacherOrTeacher]
+     def get(self,request,week =None , level=None):
+         school = request.user.school.id
+         user=request.user
+         report = Report.objects.filter(school =school , teacher=user)
+         if week is not None:
+                report = Report.objects.filter(school =school , week = week, teacher=user)
+         if level is not None:
+                report = Report.objects.filter(school=school,level = level,teacher=user)
+         if level is not None and week is not None:
+                 report = Report.objects.filter(school= school, level = level , week=week,teacher=user)
+         serializer = ReportSerializer(report , many = True)
+         return Response(data= serializer.data , status=status.HTTP_200_OK)
+     def post(self, request):
+            user=request.user
+            school = request.user.school.id
+            data = json.loads(request.body)
+            student = data.get('student')
+            subject = data.get('subject')
+            level = data.get('level')
+            week = data.get('week')
+            behavior_effort= data.get('behavior_effort')
+            goals_achieved=data.get('goals_achieved')
+            improvement_areas = data.get('improvement_areas')
+            comments= data.get('comments')
+            next_week_goals = data.get('next_week_goals')
+            academic_progress = data.get(' academic_progress')
+            #instances
+            student = Student.objects.get(id=student)
+            school = School.objects.get(id=school)
+            level = Level.objects.get(id=level)
+            week = Week.objects.get(id=week)
+            subject = Subject.objects.get(id=subject)
+
+            Report.objects.create(
+                academic_progress = academic_progress,
+                teacher = user,
+                school = school,
+                student=student,
+                subject=subject,
+                level=level,
+                week=week,
+                behavior_effort=behavior_effort,
+                goals_achieved=goals_achieved,
+                improvement_areas=improvement_areas,
+                comments=comments,
+                next_week_goals=next_week_goals
+            )
+            return Response(status=status.HTTP_201_CREATED)
+                
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacherOrTeacher])
+def single_report(request ,id):
+    school = request.user.school.id
+    report = Report.objects.filter(school=school , id=id)
+    serializer = ReportSerializer(report, many = True)
+    return Response(data= serializer.data , status=status.HTTP_200_OK)   
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsTeacher])
+def my_single_report(request, id):
+    school = request.user.school.id
+    teacher = request.user
+    report = Report.objects.filter(school=school , id=id, teacher = teacher)
+    if not report.exists():
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    serializer = ReportSerializer(report, many = True)
+    return Response(data= serializer.data , status=status.HTTP_200_OK)   
+    
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacherOrTeacher])
+def all_weeks_data(request):
+    school = request.user.school.id
+    weeks = Week.objects.filter(school=school)
+    week_data = []
+    for week in weeks:
+        reports = Report.objects.filter(school=school, week = week).count()
+        serializer = WeekSerializer(week)
+        data = {
+            'week' : serializer.data,
+            'reports': reports
+        }
+        week_data.append(data)
+    return Response(data= week_data, status=status.HTTP_200_OK) 
+
+import datetime
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacher])
+def save_current_week(request):
+    school_id = request.user.school.id
+    today = datetime.date.today()
+    current_week_number = (today.day - 1) // 7 + 1
+    current_month = today.strftime("%B")  # Get the full month name
+    current_year = today.year
+    week_name = f"Week {current_week_number} {current_month} {current_year}"
+    # Check if the week already exists for the school
+    existing_week = Week.objects.filter(name=week_name, school_id=school_id).first()
+
+    if existing_week is None:
+        # If the week doesn't exist, create a new one
+        Week.objects.create(name=week_name, school_id=school_id)
+        return Response(data={"message": f"Week '{week_name}' saved successfully for school {school_id}"}, status=status.HTTP_201_CREATED)
+    else:
+        # If the week already exists, return a message indicating it
+        return Response(data={"message": f"Week '{week_name}' already exists for school {school_id}"}, status=status.HTTP_200_OK)
+    
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacherOrTeacher])
+def get_my_school_students(request, level):
+    school = request.user.school.id
+    students = Student.objects.filter(current_level = level , school=school)
+    serializer = StudentSerializer(students , many=True)
+    return Response(data = serializer.data , status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacherOrTeacher])
+def get_my_subject_per_level(request, level):
+    school_id = request.user.school.id
+    user = request.user
+    
+    # Filter subjects based on the user (teacher) and school ID
+    subjects = Subject.objects.filter(teachersubject__teacher=user, school=school_id, level=level)
+    
+    # Serialize the subjects
+    serializer = SubjectSerializer(subjects, many=True)
+    
+    return Response(data=serializer.data, status=status.HTTP_200_OK)
+
