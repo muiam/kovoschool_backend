@@ -198,8 +198,10 @@ class AcademicYears(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsHeadTeacherOrTeacher |IsFinance]
     
+    
     def get(self, request):
-        allYears = AcademicYear.objects.all().order_by('-id')
+        school = request.user.school.id
+        allYears = AcademicYear.objects.filter(school=school).order_by('-id')
         serializedData = AcademicYearsSerializer(allYears,many =True)
         return Response(serializedData.data , status=status.HTTP_200_OK)
 class Terms(APIView):
@@ -1499,4 +1501,29 @@ def get_my_subject_per_level(request, level):
     serializer = SubjectSerializer(subjects, many=True)
     
     return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def get_add_school_fee(request):
+    school_id = request.user.school.id
+    school_id = School.objects.get(id=school_id)
+    data = json.loads(request.body)
+    level = data.get('level')
+    level = Level.objects.get(id=level)
+    amount = data.get('amount')
+    academic_year = data.get('academic_year')
+    academic_year = AcademicYear.objects.get(id=academic_year)
+    term = data.get('term')
+    term = Term.objects.get(id=term)
+    Fee.objects.create(
+        school = school_id,
+        level = level,
+        term =term,
+        academic_year = academic_year,
+        amount = amount
+    )
+    
+    return Response(status=status.HTTP_201_CREATED)
 

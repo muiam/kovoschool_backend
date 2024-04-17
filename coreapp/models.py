@@ -125,6 +125,8 @@ class Fee(models.Model):
     term = models.ForeignKey(Term, on_delete=models.CASCADE)
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    class Meta:
+        unique_together = ('school' , 'level' , 'term' , 'academic_year')
 
     def __str__(self):
             return f'{self.level.name} {self.term.name} {self.term.name} {self.academic_year.name} {self.amount}'

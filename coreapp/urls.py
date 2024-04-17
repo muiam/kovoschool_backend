@@ -58,6 +58,7 @@ urlpatterns = [
     path('all/financial/our/school/fee/balances/<int:year>/<int:level>', views.all_get_fee_balances),
     path('all/financial/our/school/save/revenue' , views.save_revenue),
     path('all/financial/our/school/save/expenditure' , views.save_expenditure),
+     path('all/financial/our/school/save/new/fee' , views.get_add_school_fee),
     #others
     path('app/weeks/all-weeks', views.all_weeks) ,
     path('app/weeks/all-weeks-data', views.all_weeks_data) ,

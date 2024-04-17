@@ -122,6 +122,8 @@ class FeeSerializer(serializers.ModelSerializer):
         level = obj.level
         if level.stream :
              return f"{obj.level.name} {level.stream}" 
+        else:
+             return obj.level.name
     def get_term_name(self, obj):
          return obj.term.name 
 
