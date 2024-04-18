@@ -86,6 +86,8 @@ class ReportSerializer(serializers.ModelSerializer):
         level = obj.level
         if level.stream :
              return f"{obj.level.name} {level.stream}" 
+        else:
+             return obj.level.name
      def get_teacher_name(self,obj):
           teacher = obj.teacher
           return f"{teacher.first_name} {teacher.second_name}"
