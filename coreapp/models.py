@@ -196,6 +196,7 @@ class Payslip(models.Model):
     year = models.ForeignKey(Year, on_delete=models.CASCADE)
     month = models.ForeignKey(Month , on_delete=models.CASCADE)
     gross_salary = models.DecimalField(max_digits=10, decimal_places=2)
+    total_allowances = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tax = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     social_security = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     health_insurance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -211,9 +212,14 @@ class Payslip(models.Model):
 
 
     def save(self, *args, **kwargs):
-        total_deductions = self.tax + self.social_security + self.health_insurance + self.other_deductions + self.advance_salary + self.affordable_housing
-        self.net_salary = self.gross_salary - total_deductions
-        self.total_deductions = total_deductions
+        if self.gross_salary == 0:
+            # Calculate net salary from total allowances
+            self.net_salary = self.total_allowances - self.total_deductions
+        else:
+            # Calculate net salary from gross salary
+            total_deductions = self.tax + self.social_security + self.health_insurance + self.other_deductions + self.advance_salary + self.affordable_housing
+            self.net_salary = self.gross_salary - total_deductions
+            self.total_deductions = total_deductions
 
         # Call the super method to save the payslip
         super().save(*args, **kwargs)
