@@ -251,3 +251,6 @@ class Report(models.Model):
      comments = models.TextField(null=True, blank=True)
      next_week_goals = models.TextField(null=True, blank=True)
      date = models.DateField(auto_now_add=True)
+
+     class Meta:
+         unique_together = ('student', 'school', 'subject', 'level', 'week')

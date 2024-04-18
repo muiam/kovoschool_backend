@@ -1393,7 +1393,7 @@ class MyStudentReport(APIView):
             improvement_areas = data.get('improvement_areas')
             comments= data.get('comments')
             next_week_goals = data.get('next_week_goals')
-            academic_progress = data.get(' academic_progress')
+            academic_progress = data.get('academic_progress')
             #instances
             student = Student.objects.get(id=student)
             school = School.objects.get(id=school)
