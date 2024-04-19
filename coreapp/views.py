@@ -1600,7 +1600,7 @@ def revenue_vs_expenditure(request, year):
         .values('month') \
         .annotate(total_expenditure=Sum('amount')) \
         .order_by('month')
-    total_deductions = Payslip.objects.filter(date__year=year).aggregate(total_deductions =Sum('total_deductions'))
+    total_deductions = Payslip.objects.filter(date__year=year ,paid = True , school= school).aggregate(total_deductions =Sum('total_deductions'))
     total_deductions_amount = total_deductions.get('total_deductions', 0)
     for item in revenue_by_month:
         months_data[item['month']]['total_revenue'] = item['total_revenue']
