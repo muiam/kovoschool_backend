@@ -209,21 +209,7 @@ class Payslip(models.Model):
 
     class Meta:
          unique_together = ('employee', 'year', 'month')
-
-
-    def save(self, *args, **kwargs):
-        if self.gross_salary == 0:
-            # Calculate net salary from total allowances
-            self.net_salary = self.total_allowances - self.total_deductions
-        else:
-            # Calculate net salary from gross salary
-            total_deductions = self.tax + self.social_security + self.health_insurance + self.other_deductions + self.advance_salary + self.affordable_housing
-            self.net_salary = self.gross_salary - total_deductions
-            self.total_deductions = total_deductions
-
-        # Call the super method to save the payslip
-        super().save(*args, **kwargs)
-        #send an email here
+    #send an email here
     @property
     def date_as_date(self):
         return self.date.date()

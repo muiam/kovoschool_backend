@@ -58,7 +58,9 @@ urlpatterns = [
     path('all/financial/our/school/fee/balances/<int:year>/<int:level>', views.all_get_fee_balances),
     path('all/financial/our/school/save/revenue' , views.save_revenue),
     path('all/financial/our/school/save/expenditure' , views.save_expenditure),
-     path('all/financial/our/school/save/new/fee' , views.get_add_school_fee),
+    path('all/financial/our/school/save/new/fee' , views.get_add_school_fee),
+    path('all/financial/our/school/stats/revenues-expenditure/for/year/<int:year>' , views.revenue_vs_expenditure),
+
     #others
     path('app/weeks/all-weeks', views.all_weeks) ,
     path('app/weeks/all-weeks-data', views.all_weeks_data) ,
@@ -76,5 +78,7 @@ urlpatterns = [
     path('app/student/my/progress/weekly/single/report/details/<int:id>' , views.my_single_report),
     path('app/student/my/progress/weekly/single/report/<int:id>/' , views.single_report),
 
-    path('actions/deactivate/user/' , views.deactivateUser)
+    path('actions/deactivate/user/' , views.deactivateUser),
+    path('actions/pay/payslip/', views.pay_pasyslip)
+
 ]

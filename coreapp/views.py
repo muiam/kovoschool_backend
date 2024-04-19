@@ -153,6 +153,18 @@ def deactivateUser(request):
     except User.DoesNotExist:
         return Response({"error": f"User with email {user_email} does not exist."}, status=404)
 
+@api_view(['PUT'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def pay_pasyslip(request):
+    slip_id = request.query_params.get('id', '').strip()
+    try:
+        slip = Payslip.objects.get(id=slip_id)
+        slip.paid =True
+        slip.save()
+        return Response(status=status.HTTP_200_OK)
+    except User.DoesNotExist:
+        return Response( status=status.HTTP_400_BAD_REQUEST)
 class RegisterStudent(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsHeadTeacher]
@@ -787,6 +799,34 @@ class NewPayslip(APIView):
         serializer = NewPaySlipSerializer(data=request.data)
 
         if serializer.is_valid():
+            # Extract gross salary and total allowances from request data
+            gross_salary = serializer.validated_data.get('gross_salary', 0)
+            total_allowances = serializer.validated_data.get('total_allowances', 0)
+
+            # Calculate total deductions
+            tax = serializer.validated_data.get('tax', 0)
+            social_security = serializer.validated_data.get('social_security', 0)
+            health_insurance = serializer.validated_data.get('health_insurance', 0)
+            other_deductions = serializer.validated_data.get('other_deductions', 0)
+            advance_salary = serializer.validated_data.get('advance_salary', 0)
+            affordable_housing = serializer.validated_data.get('affordable_housing', 0)
+            total_deductions = tax + social_security + health_insurance + other_deductions + advance_salary + affordable_housing
+            print("total deductions", total_deductions)
+            print("total allowances" , total_allowances)
+            print("total gross salary" , gross_salary)
+            # Calculate net salary based on gross salary or total allowances
+            if gross_salary == 0:
+                net_salary = total_allowances - total_deductions 
+                print("next salary as a result of total allowances", net_salary)
+            else:
+                net_salary = gross_salary - total_deductions
+                print("next salary as a result of gross salary", net_salary)
+
+            # Update net_salary and total_deductions in serializer data
+            serializer.validated_data['net_salary'] = net_salary
+            serializer.validated_data['total_deductions'] = total_deductions
+
+            # Save the serializer
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         elif 'non_field_errors' in serializer.errors and serializer.errors['non_field_errors'][0] == "An employee can have only one payslip per month.":
@@ -795,6 +835,7 @@ class NewPayslip(APIView):
         else:
             # For other validation errors, return the standard error response
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
         
 
 @api_view(["GET"])
@@ -1527,3 +1568,52 @@ def get_add_school_fee(request):
     
     return Response(status=status.HTTP_201_CREATED)
 
+from django.db.models.functions import ExtractMonth
+from django.http import JsonResponse
+from .models import Transaction
+from datetime import datetime
+from calendar import month_name
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def revenue_vs_expenditure(request, year):
+    school = request.user.school.id
+    months_data = {}
+
+    # Initialize months data with zeros
+    for month in range(1, 13):
+        months_data[month] = {
+            'month_name': month_name[month],
+            'total_revenue': 0,
+            'total_expenditure': 0,
+        }
+
+    # Populate months data with revenue and expenditure
+    revenue_by_month = Transaction.objects.filter(date__year=year, type='revenue', school=school) \
+        .annotate(month=ExtractMonth('date')) \
+        .values('month') \
+        .annotate(total_revenue=Sum('amount')) \
+        .order_by('month')
+
+    expenditure_by_month = Transaction.objects.filter(date__year=year, type='expenditure', school=school) \
+        .annotate(month=ExtractMonth('date')) \
+        .values('month') \
+        .annotate(total_expenditure=Sum('amount')) \
+        .order_by('month')
+
+    for item in revenue_by_month:
+        months_data[item['month']]['total_revenue'] = item['total_revenue']
+
+    for item in expenditure_by_month:
+        months_data[item['month']]['total_expenditure'] = item['total_expenditure']
+
+    # Calculate balance at hand
+    balance_at_hand = 0
+    for month_data in months_data.values():
+        balance_at_hand += month_data['total_revenue'] - month_data['total_expenditure']
+
+    data = {
+        'months_data': list(months_data.values()),
+        'balance_at_hand': balance_at_hand
+    }
+    return Response(data=data, status=status.HTTP_200_OK)
