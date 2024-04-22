@@ -7,10 +7,13 @@ urlpatterns = [
     path('actions/parent' , views.RegisterParent.as_view()),
     path('actions/student',views.RegisterStudent.as_view()),
     path('actions/student/level/<int:level>',views.get_my_school_students),
-     path('actions/subject/level/<int:level>' , views.get_my_subject_per_level),
+    path('actions/subject/level/<int:level>' , views.get_my_subject_per_level),
     path('actions/subject' , views.Subjects.as_view()),
     path('actions/assignSubject' ,views.AssignSubject.as_view()),
     path('actions/free/subjects', views.FreeSubjects.as_view()),
+    path('actions/my/student/level/<int:level>',views.get_my_kid),
+    path('actions/my/student/',views.get_my_kid),
+   
     #token
     path('auth/token/', views.MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
@@ -32,6 +35,10 @@ urlpatterns = [
     path('exams/subject_drop_stats/<int:year_id>/<int:term_id>/<int:exam_id>/<int:level_id>/', views.find_least_improved_students),
     path('exam-results/compare/<int:year_id>/<int:term_id>/<int:exam_id>/<int:level_id>/<int:student_id>/', 
          views.find_student_scores, name='find-student-scores'),
+
+    path('exam-results/academic/year/recent/analysis/<str:student_id>', views.get_my_learner_year_achievement),
+    path('exam-results/academic/year/recent/analysis/default/student', views.get_my_learner_year_achievement),
+
     path('students/level/<int:level_id>', views.get_students_per_level),
     path('all/financial/years', views.get_year),
     path('all/financial/months', views.get_month),
@@ -60,6 +67,7 @@ urlpatterns = [
     path('all/financial/our/school/save/expenditure' , views.save_expenditure),
     path('all/financial/our/school/save/new/fee' , views.get_add_school_fee),
     path('all/financial/our/school/stats/revenues-expenditure/for/year/<int:year>' , views.revenue_vs_expenditure),
+    path('all/financial/mykid/fee/statements/<str:year>/<str:term>/<str:fee>/<str:grade>/<str:student>', views.get_my_kid_fee_statements),
 
     #others
     path('app/weeks/all-weeks', views.all_weeks) ,
@@ -78,7 +86,23 @@ urlpatterns = [
     path('app/student/my/progress/weekly/single/report/details/<int:id>' , views.my_single_report),
     path('app/student/my/progress/weekly/single/report/<int:id>/' , views.single_report),
 
+    #
+
+    path('app/kid/my/progress/weekly/reports' , views.MyKidReport.as_view()),
+    path('app/kid/my/progress/weekly/reports/<int:level>/<int:week>' ,views.MyKidReport.as_view()),
+    path('app/kid/my/progress/weekly/reports/level/<int:level>/' , views.MyKidReport.as_view()),
+    path('app/kid/my/progress/weekly/reports/week/<int:week>/' , views.MyKidReport.as_view()),
+    path('app/kid/my/progress/weekly/reports/kid/<int:student>/' , views.MyKidReport.as_view()),
+    path('app/kid/my/progress/weekly/single/report/details/<int:id>' , views.my_kid_single_report),
+    path('app/kid/my/data/summary' , views.my_kids_data),
+    
+
     path('actions/deactivate/user/' , views.deactivateUser),
-    path('actions/pay/payslip/', views.pay_pasyslip)
+    path('actions/pay/payslip/', views.pay_pasyslip),
+
+
+    #notications
+    path('app/notifications/for/users/status/unread/count' , views.get_unread_notifications),
+    path('app/notifications/for/users/read/<str:id>' , views.update_unread_notifications),
 
 ]

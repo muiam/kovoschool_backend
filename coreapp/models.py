@@ -163,6 +163,7 @@ class Exam(models.Model):
     name = models.CharField(max_length = 20)
     year = models.ForeignKey(AcademicYear, on_delete = models.CASCADE)
     term = models.ForeignKey(Term, on_delete = models.CASCADE)
+    published = models.BooleanField(default=False)
 
     def __str__(self):
             return f'{self.name}'
@@ -246,3 +247,10 @@ class Report(models.Model):
 
      class Meta:
          unique_together = ('student', 'school', 'subject', 'level', 'week')
+
+class Notification(models.Model):
+     recipient = models.ForeignKey(User, on_delete=models.CASCADE)
+     title = models.CharField(max_length=100 , default="This is an unititled notication" )
+     message = models.TextField()
+     time = models.DateTimeField(auto_now_add=True)
+     is_read = models.BooleanField(default=False)

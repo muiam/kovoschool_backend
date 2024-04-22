@@ -1,6 +1,6 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import AcademicYear, Exam, ExamResult, Fee, FeeBalance, Level, Month, Payslip, Report, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year
+from .models import AcademicYear, CarryForward, Exam, ExamResult, Fee, FeeBalance, Level, Month, Notification, Payslip, Report, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year
 from rest_framework import serializers
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -249,6 +249,15 @@ class NewPaySlipSerializer(serializers.ModelSerializer):
         date = serializers.DateField(source='date_as_date', read_only=True)
         class Meta:
             model = Payslip
+            fields = '__all__'
+
+class CarryFowardSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = CarryForward
+            fields = '__all__'
+class NotificationSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Notification
             fields = '__all__'
 
 class AssignedSubjectSerializer(serializers.ModelSerializer):

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import School,User,Level,Student,AcademicYear, Term, Exam, ExamResult,Subject,TeacherSubject,Payslip,Year,Month,Fee,FeePayment,CarryForward, Transaction,FeeBalance,Week,Report
+from .models import Notification, School,User,Level,Student,AcademicYear, Term, Exam, ExamResult,Subject,TeacherSubject,Payslip,Year,Month,Fee,FeePayment,CarryForward, Transaction,FeeBalance,Week,Report
 # Register your models here.
 
 admin.site.register(School)
@@ -22,6 +22,7 @@ admin.site.register(Transaction)
 admin.site.register(FeeBalance)
 admin.site.register(Week)
 admin.site.register(Report)
+admin.site.register(Notification)
 
 
 

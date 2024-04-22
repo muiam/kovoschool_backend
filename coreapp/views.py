@@ -4,13 +4,13 @@ from rest_framework.decorators import api_view ,APIView,permission_classes,authe
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .permissions import IsFinance, IsHeadTeacher, IsHeadTeacherOrTeacher, IsTeacher
+from .permissions import IsAllUsers, IsFinance, IsHeadTeacher, IsHeadTeacherOrTeacher, IsParent, IsTeacher
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .models import AcademicYear, CarryForward, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Payslip, School, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year, Report
+from .models import AcademicYear, CarryForward, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Notification, Payslip, School, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year, Report
 from django.contrib.auth import logout
 
-from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
+from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, CarryFowardSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
 from rest_framework import status
 from django.db.models import Q
 from django.db.models import Count,Sum,F,IntegerField
@@ -198,7 +198,7 @@ class RegisterStudent(APIView):
 
 class Levels(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsHeadTeacherOrTeacher | IsFinance]
+    permission_classes = [IsAllUsers]
     
     def get(self, request):
         school =request.user.school.id
@@ -208,7 +208,7 @@ class Levels(APIView):
     
 class AcademicYears(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsHeadTeacherOrTeacher |IsFinance]
+    permission_classes = [IsAllUsers]
     
     
     def get(self, request):
@@ -218,7 +218,7 @@ class AcademicYears(APIView):
         return Response(serializedData.data , status=status.HTTP_200_OK)
 class Terms(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsHeadTeacherOrTeacher | IsFinance]
+    permission_classes = [IsAllUsers]
     
     def get(self, request):
         year_id = request.query_params.get('year')
@@ -230,7 +230,7 @@ class Terms(APIView):
         return Response(serializedData.data, status=status.HTTP_200_OK)
 class Exams (APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsHeadTeacherOrTeacher]
+    permission_classes = [IsAllUsers]
     
     def get(self, request):
         year_id = request.query_params.get('year')
@@ -239,9 +239,13 @@ class Exams (APIView):
             raise Http404("Year ID parameter is required")
 
         school =request.user.school.id
-        allExams = Exam.objects.filter(school =school,term =term_id ,year =year_id).order_by('-id')
+        allExams = Exam.objects.filter(school =school,term =term_id ,year =year_id , published=True).order_by('-id')
         serializedData = ExamSerializer(allExams,many =True)
-        return Response(serializedData.data , status=status.HTTP_200_OK)
+        if allExams.exists():
+            return Response( data=serializedData.data, status=status.HTTP_200_OK)
+        else:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
     
 class Subjects(APIView):
     authentication_classes = [JWTAuthentication]
@@ -691,7 +695,7 @@ def find_least_improved_students(request, year_id, term_id, exam_id, level_id):
 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsHeadTeacherOrTeacher])
+@permission_classes([IsAllUsers])
 def find_student_scores(request, year_id, term_id, exam_id, level_id, student_id):
     try:
         # Filter exams for the student within the academic year and term
@@ -903,7 +907,7 @@ def my_single_payslip(request, payslip):
 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsFinance | IsHeadTeacherOrTeacher])
+@permission_classes([IsAllUsers])
 def all_school_fees(request, year=None, term=None, grade=None):
     school_id = request.user.school.id
     fees = Fee.objects.filter(school=school_id)
@@ -1385,7 +1389,7 @@ def save_expenditure(request):
 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsHeadTeacherOrTeacher])
+@permission_classes([IsAllUsers])
 def all_weeks(request):
     school = request.user.school.id
     week = Week.objects.filter(school=school)
@@ -1406,6 +1410,7 @@ class StudentReport(APIView):
                  report = Report.objects.filter(school= school, level = level , week=week)
          serializer = ReportSerializer(report , many = True)
          return Response(data= serializer.data , status=status.HTTP_200_OK)
+     
 class MyStudentReport(APIView):
      authentication_classes = [JWTAuthentication]
      permission_classes = [IsHeadTeacherOrTeacher]
@@ -1457,6 +1462,27 @@ class MyStudentReport(APIView):
                 next_week_goals=next_week_goals
             )
             return Response(status=status.HTTP_201_CREATED)
+
+class MyKidReport(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsParent]
+
+    def get(self, request, student=None, week=None, level=None):
+        school_id = request.user.school.id
+        queryset = Report.objects.filter(student__parent=request.user, school=school_id)
+
+        if student is not None:
+            queryset = queryset.filter(student=student)
+
+        if week is not None:
+            queryset = queryset.filter(week=week)
+
+        if level is not None:
+            queryset = queryset.filter(level=level)
+
+        serializer = ReportSerializer(queryset, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
                 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication])
@@ -1477,7 +1503,20 @@ def my_single_report(request, id):
     if not report.exists():
         return Response(status=status.HTTP_404_NOT_FOUND)
     serializer = ReportSerializer(report, many = True)
-    return Response(data= serializer.data , status=status.HTTP_200_OK)   
+    return Response(data= serializer.data , status=status.HTTP_200_OK)  
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsParent])
+def my_kid_single_report(request, id):
+    school = request.user.school.id
+    parent = request.user
+    report = Report.objects.filter(school=school , id=id, student__parent =parent)
+    if not report.exists():
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    serializer = ReportSerializer(report, many = True)
+    return Response(data= serializer.data , status=status.HTTP_200_OK)  
     
 
 @api_view(["GET"])
@@ -1526,6 +1565,21 @@ def get_my_school_students(request, level):
     school = request.user.school.id
     students = Student.objects.filter(current_level = level , school=school)
     serializer = StudentSerializer(students , many=True)
+    return Response(data = serializer.data , status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsParent])
+def get_my_kid(request, level = None):
+    user = request.user
+    school = request.user.school.id
+    if level is not None:
+        students = Student.objects.filter(current_level = level , school=school, parent = user)
+        serializer = StudentSerializer(students , many=True)
+    else:
+        students = Student.objects.filter(school=school, parent = user)
+        serializer = StudentSerializer(students , many=True)
+    
     return Response(data = serializer.data , status=status.HTTP_200_OK)
 
 @api_view(["GET"])
@@ -1619,3 +1673,127 @@ def revenue_vs_expenditure(request, year):
         'total_deductions': total_deductions_amount
     }
     return Response(data=data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAllUsers])
+def get_my_kid_fee_statements(request, year, term,fee, grade,student):
+    year_obj = AcademicYear.objects.get(id=year)
+    term_obj = Term.objects.get(id=term)
+    grade_obj = Level.objects.get(id=grade)
+    fee_obj = Fee.objects.get(id=fee)
+    required = fee_obj.amount
+
+    payments = FeePayment.objects.filter(
+        student=student,
+        level=grade_obj,
+        academic_year=year_obj,
+        term=term_obj,
+        fee=fee_obj,
+    )
+
+    total_paid = payments.aggregate(total_paid=Sum('amount_paid'))['total_paid'] or 0
+    balance = required - total_paid
+    if balance<=0:
+        balance =0
+    else:
+        balance=balance
+
+    payment_data = [{
+        'id': payment.id,
+        'date' :  payment.date_paid,
+        'amount_paid': payment.amount_paid,
+        'receipt_number' : payment.receipt_number,
+        'fowarded' : payment.overpay,
+        # Add other fields as needed
+    } for payment in payments]
+
+    payment_data = {
+        'payments': payment_data,
+        'total': total_paid,
+        'balance' : balance,
+        'required': required,
+    }
+
+    return Response(data=payment_data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsParent])
+def get_my_learner_year_achievement(request, student_id=None):
+    school = request.user.school
+    year = AcademicYear.objects.filter(school=school).order_by('-id').first()
+    if not year:
+        return Response({"message": "No academic year found for the school."}, status=status.HTTP_404_NOT_FOUND)
+
+    if student_id is None:
+        # If student_id is not provided, get the first student associated with the parent
+        user = request.user
+        first_student = Student.objects.filter(parent=user).first()  # Accessing the first student
+        if not first_student:
+            return Response({"message": "No student found for the parent."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            student_id = first_student.id
+    exams = Exam.objects.filter(year=year, school=school , published=True)
+    exam_results = []
+    for exam in exams:
+        exam_result = ExamResult.objects.filter(exam=exam, student_id=student_id).aggregate(total_score=Sum('score'))
+        if exam_result['total_score'] is not None:
+            exam_data = {
+                "academic_year" : year.name,
+                "exam_id": exam.id,
+                "exam_name": exam.name,
+                "total_score": exam_result['total_score']
+            }
+            exam_results.append(exam_data)
+    
+    return Response(data=exam_results , status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsParent])
+def my_kids_data(request):
+    user = request.user
+    students_number = Student.objects.filter(school=request.user.school.id, parent=user).count()
+    
+    # Aggregate the total amount across all students
+    total_wallet_balance = CarryForward.objects.filter(student__parent=user).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+
+    student_data = {
+        'student_number': students_number,
+        'total_wallet_balance': total_wallet_balance
+    }
+
+    return Response(data=student_data, status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAllUsers])
+def get_unread_notifications(request):
+    user = request.user
+    unread_cont = Notification.objects.filter(recipient = user , is_read = False).count()
+    unread = Notification.objects.filter(recipient = user , is_read = False)
+    serializer = NotificationSerializer(unread , many =True)
+    return Response(data ={'count': unread_cont , 'unread' : serializer.data} , status=status.HTTP_200_OK)
+
+@api_view(["PUT"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAllUsers])
+def update_unread_notifications(request, id):
+    user = request.user
+    # Get the unread notification with the given ID for the current user
+    unread_notifications = Notification.objects.filter(recipient=user, is_read=False, id=id)
+    
+    # Check if the unread notification exists
+    if unread_notifications.exists():
+        # Update the is_read field of each unread notification
+        unread_notifications.update(is_read=True)
+        return Response(status=status.HTTP_200_OK)
+    else:
+        return Response({"error": "Unread notification not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
