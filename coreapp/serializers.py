@@ -36,7 +36,6 @@ class ExamSerializer(serializers.ModelSerializer):
         class Meta:
             model = Exam
             fields = '__all__'
-
 class SubjectScoreSerializer(serializers.Serializer):
     subject_name = serializers.CharField()
     subject_score = serializers.IntegerField()
@@ -251,14 +250,21 @@ class NewPaySlipSerializer(serializers.ModelSerializer):
             model = Payslip
             fields = '__all__'
 
+            
+class ChangePasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(min_length=8, write_only=True)
+
 class CarryFowardSerializer(serializers.ModelSerializer):
         class Meta:
             model = CarryForward
             fields = '__all__'
 class NotificationSerializer(serializers.ModelSerializer):
+        sender_name = serializers.SerializerMethodField()
         class Meta:
             model = Notification
             fields = '__all__'
+        def get_sender_name(self, obj):
+            return obj.sender.first_name +" "+ obj.sender.last_name if obj.sender else 'system'
 
 class AssignedSubjectSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='subject.name', read_only=True)

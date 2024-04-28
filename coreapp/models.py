@@ -249,7 +249,9 @@ class Report(models.Model):
          unique_together = ('student', 'school', 'subject', 'level', 'week')
 
 class Notification(models.Model):
-     recipient = models.ForeignKey(User, on_delete=models.CASCADE)
+     recipient = models.ForeignKey(User, on_delete=models.CASCADE , related_name='received_notifications')
+     sender = models.ForeignKey(User , on_delete=models.CASCADE , default=None, null=True, related_name='send_notifications')
+     school = models.ForeignKey(School , on_delete=models.CASCADE)
      title = models.CharField(max_length=100 , default="This is an unititled notication" )
      message = models.TextField()
      time = models.DateTimeField(auto_now_add=True)

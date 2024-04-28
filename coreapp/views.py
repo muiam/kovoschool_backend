@@ -4,13 +4,13 @@ from rest_framework.decorators import api_view ,APIView,permission_classes,authe
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .permissions import IsAllUsers, IsFinance, IsHeadTeacher, IsHeadTeacherOrTeacher, IsParent, IsTeacher
+from .permissions import IsAllExceptParent, IsAllUsers, IsFinance, IsHeadTeacher, IsHeadTeacherOrTeacher, IsParent, IsTeacher
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from .models import AcademicYear, CarryForward, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Notification, Payslip, School, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year, Report
 from django.contrib.auth import logout
 
-from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, CarryFowardSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
+from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, CarryFowardSerializer, ChangePasswordSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
 from rest_framework import status
 from django.db.models import Q
 from django.db.models import Count,Sum,F,IntegerField
@@ -1795,5 +1795,91 @@ def update_unread_notifications(request, id):
         return Response({"error": "Unread notification not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
+class Notifications(APIView):
+    def post(self,request , type):
+        school = request.user.school.id
+        school = School.objects.get(id=school)
+        # data = json.loads(request.body)
+        subject = request.data.get('subject')
+        message = request.data.get('message')
+        if type == 'parent':
+            parents = User.objects.filter(is_active = True, school=school , type='parent')
+            for parent in parents:
+                Notification.objects.create(
+                    recipient = parent,
+                    sender = request.user,
+                     school = school,
+                    title =subject,
+                    message = message
+                )
+            return Response(status=status.HTTP_201_CREATED)
+        elif type == 'teacher':
+            teachers = User.objects.filter(is_active = True, school=school , type='teacher')
+            for teacher in teachers:
+                Notification.objects.create(
+                    recipient = teacher,
+                    sender = request.user,
+                     school = school,
+                    title = subject,
+                    message = message
+                )
+            return Response(status=status.HTTP_201_CREATED)
+        elif type == 'all':
+            users= User.objects.filter(is_active = True, school=school)
+            for user in users:
+                Notification.objects.create(
+                    recipient = user,
+                    sender = request.user,
+                     school = school,
+                    title = subject,
+                    message = message
+                )
+            return Response(status=status.HTTP_201_CREATED)
+        elif type =='single':
+            recipient = request.data.get('recipient')
+            recipient = User.objects.get(id = recipient , school = school)
+            Notification.objects.create(
+                    recipient = recipient,
+                    sender = request.user,
+                    school = school,
+                    title = subject,
+                    message = message
+                )
+            return Response(status=status.HTTP_201_CREATED)
 
 
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAllExceptParent])       
+def all_school_members(request):
+    school =request.user.school.id
+    all = User.objects.filter(school = school , is_active=True )
+    serializer = UserSerializer(all , many = True)
+    return Response(data=serializer.data , status=status.HTTP_200_OK)
+
+
+class ChangePasswordView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAllUsers]
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        user = User.objects.get(id= request.user.id)
+        school = School.objects.get(id = request.user.school.id)
+        if serializer.is_valid():
+            new_password = serializer.validated_data.get('new_password')
+            user = request.user
+            user.set_password(new_password)
+            user.save()
+            Notification.objects.create(
+                    recipient = user,
+                    school = school,
+                    title = 'password change',
+                    message = f"Hi {request.user.first_name},\nYour password change was initiated successfully. If you didn't perform any password change recently, please contact the support team for assistance.\nBy a copy of this message, an awareness as per the subject above has been made to you.\nRegards"
+            )
+            return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
+        print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

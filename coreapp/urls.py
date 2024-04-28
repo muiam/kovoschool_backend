@@ -13,6 +13,7 @@ urlpatterns = [
     path('actions/free/subjects', views.FreeSubjects.as_view()),
     path('actions/my/student/level/<int:level>',views.get_my_kid),
     path('actions/my/student/',views.get_my_kid),
+    path('actions/all/school/staff/',views.all_school_members),
    
     #token
     path('auth/token/', views.MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -104,5 +105,9 @@ urlpatterns = [
     #notications
     path('app/notifications/for/users/status/unread/count' , views.get_unread_notifications),
     path('app/notifications/for/users/read/<str:id>' , views.update_unread_notifications),
+    path('app/notifications/for/users/create/<str:type>' , views.Notifications.as_view()),
+    path('app/notifications/for/users/all/' , views.Notifications.as_view()),
+    path('app/auth/change/password' , views.ChangePasswordView.as_view()),
+
 
 ]

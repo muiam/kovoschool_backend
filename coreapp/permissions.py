@@ -36,4 +36,10 @@ class TeacherOrParent(BasePermission):
     def has_permission(self, request, view):
         is_authenticated = request.user and request.user.is_authenticated
         return bool(is_authenticated and (request.user.type == 'parent' or request.user.type == 'teacher'))
-
+class IsAllExceptParent(BasePermission):
+    """
+    Allows access only to head teachers and teachers.
+    """
+    def has_permission(self, request, view):
+        is_authenticated = request.user and request.user.is_authenticated
+        return bool(is_authenticated and (request.user.type == 'headTeacher' or request.user.type == 'teacher' or request.user.type=='accountant'))
