@@ -367,6 +367,13 @@ class RegisterStudentSerializer(serializers.ModelSerializer):
         def create(self, validated_data):
             student = Student.objects.create(**validated_data)
             return student
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    new_password = serializers.CharField()
     
 class TeacherSubjectSerializer(serializers.ModelSerializer):
     class Meta:

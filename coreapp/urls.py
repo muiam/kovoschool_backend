@@ -107,6 +107,12 @@ urlpatterns = [
     path('app/notifications/for/users/read/<str:id>' , views.update_unread_notifications),
     path('app/notifications/for/users/create/<str:type>' , views.Notifications.as_view()),
     path('app/notifications/for/users/all/' , views.Notifications.as_view()),
+    
+
+    #passwords
+
+    path('reset-password/', views.PasswordResetRequestAPIView.as_view()),
+    path('reset-password/confirm/', views.PasswordResetConfirmAPIView.as_view()),
     path('app/auth/change/password' , views.ChangePasswordView.as_view()),
 
 

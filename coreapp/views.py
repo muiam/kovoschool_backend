@@ -4,17 +4,26 @@ from rest_framework.decorators import api_view ,APIView,permission_classes,authe
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from kovo_school import settings
+
 from .permissions import IsAllExceptParent, IsAllUsers, IsFinance, IsHeadTeacher, IsHeadTeacherOrTeacher, IsParent, IsTeacher
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from .models import AcademicYear, CarryForward, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Notification, Payslip, School, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year, Report
 from django.contrib.auth import logout
 
-from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, CarryFowardSerializer, ChangePasswordSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
+from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, CarryFowardSerializer, ChangePasswordSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
 from rest_framework import status
 from django.db.models import Q
 from django.db.models import Count,Sum,F,IntegerField
 from django.db.models.functions import Cast
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.core.mail import send_mail , EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.timezone import timedelta
+from django.utils import timezone
 
 from . import models
 
@@ -52,6 +61,18 @@ class RegisterTeacher(APIView):
                 serializer.validated_data['type'] = "teacher"
                 user = serializer.save()
                 user.set_password(serializer.validated_data['password'])
+                #send an email
+                html_message = render_to_string('welcome_mail.html', {'user': user.first_name , 'school': request.user.school.name})
+                subject = 'Invitation to shulea'
+                from_email = settings.EMAIL_HOST_USER
+                to_email = user.email
+
+                # Specify both plain text and HTML content
+                text_content = ''  # Empty string for plain text content
+                email = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
+                email.attach_alternative(html_message, "text/html")  # Attach HTML content
+                #send email
+                email.send()
                 user.save()
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             print(serializer.errors)
@@ -82,6 +103,18 @@ class RegisterParent(APIView):
                 serializer.validated_data['type'] = "parent"
                 user = serializer.save()
                 user.set_password(serializer.validated_data['password'])
+                #send an email
+                html_message = render_to_string('welcome_mail.html', {'user': user.first_name , 'school': request.user.school.name})
+                subject = 'Invitation to shulea'
+                from_email = settings.EMAIL_HOST_USER
+                to_email = user.email
+
+                # Specify both plain text and HTML content
+                text_content = ''  # Empty string for plain text content
+                email = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
+                email.attach_alternative(html_message, "text/html")  # Attach HTML content
+                #send email
+                email.send()
                 user.save()
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             print(serializer.errors)
@@ -1883,3 +1916,71 @@ class ChangePasswordView(APIView):
             return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+class PasswordResetRequestAPIView(APIView):
+    serializer_class = PasswordResetRequestSerializer
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)  # Updated this line
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'detail': 'No user found with this email address'}, status=status.HTTP_400_BAD_REQUEST)
+
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        reset_link = f"http://localhost:5173/reset-password/confirm/?uid={uid}&token={token}"
+        html_message = render_to_string('password_reset_template.html', {'reset_link': reset_link})
+        subject = 'Reset your password'
+        from_email = settings.EMAIL_HOST_USER
+        to_email = email
+
+        # Specify both plain text and HTML content
+        text_content = ''  # Empty string for plain text content
+        email = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
+        email.attach_alternative(html_message, "text/html")  # Attach HTML content
+        #send email
+        email.send()
+        user.reset_password_token = token
+        user.reset_password_token_created_at = timezone.now()
+        user.save()
+        return Response({'detail': 'Password reset email sent'}, status=status.HTTP_200_OK)
+
+class PasswordResetConfirmAPIView(APIView):
+    serializer_class = PasswordResetConfirmSerializer
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        token = serializer.validated_data['token']
+        new_password = serializer.validated_data['new_password']
+        uidb64 = request.query_params.get('uid')
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+        # Check if the token matches the stored token
+        if (user.reset_password_token == token and
+            default_token_generator.check_token(user, token) and
+            user.reset_password_token_created_at and
+            timezone.now() <= user.reset_password_token_created_at + timedelta(hours=5)):
+
+            # Reset the password
+            user.set_password(new_password)
+            user.save()
+
+            # Clear the token and creation time
+            user.reset_password_token = None
+            user.reset_password_token_created_at = None
+            user.save()
+
+            return Response({'detail': 'Password reset successfully'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'detail': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+

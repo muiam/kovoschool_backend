@@ -39,6 +39,8 @@ class User(AbstractUser):
     )
     type = models.CharField(max_length =20 ,choices =type_Choices, default= "teacher")
     school = models.ForeignKey(School, on_delete=models.CASCADE , null =True , blank =True)
+    reset_password_token = models.CharField(max_length=255, blank=True, null=True)
+    reset_password_token_created_at = models.DateTimeField(blank=True, null=True)
 
     objects = CustomUserManager()
     USERNAME_FIELD = 'email'
