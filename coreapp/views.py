@@ -9,10 +9,10 @@ from kovo_school import settings
 from .permissions import IsAllExceptParent, IsAllUsers, IsFinance, IsHeadTeacher, IsHeadTeacherOrTeacher, IsParent, IsTeacher
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .models import AcademicYear, CarryForward, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Notification, Payslip, School, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year, Report
+from .models import AcademicYear, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Notification, Payslip, School, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year, Report
 from django.contrib.auth import logout
 
-from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, CarryFowardSerializer, ChangePasswordSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
+from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, CarryFowardSerializer, ChangePasswordSerializer, CurriculumSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
 from rest_framework import status
 from django.db.models import Q
 from django.db.models import Count,Sum,F,IntegerField
@@ -24,7 +24,7 @@ from django.core.mail import send_mail , EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.timezone import timedelta
 from django.utils import timezone
-
+from django.utils.html import strip_tags
 from . import models
 
 # Create your views here.
@@ -66,10 +66,9 @@ class RegisterTeacher(APIView):
                 subject = 'Invitation to shulea'
                 from_email = settings.EMAIL_HOST_USER
                 to_email = user.email
-
-                # Specify both plain text and HTML content
-                text_content = ''  # Empty string for plain text content
-                email = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
+                plain_message = strip_tags(html_message)
+                body= plain_message
+                email = EmailMultiAlternatives(subject, body, from_email, [to_email])
                 email.attach_alternative(html_message, "text/html")  # Attach HTML content
                 #send email
                 email.send()
@@ -232,6 +231,18 @@ class RegisterStudent(APIView):
 class Levels(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAllUsers]
+
+    def post(self, request):
+        school = School.objects.get(id=request.user.school.id)
+        data = json.loads(request.body)
+        name = data.get('name')
+        stream = data.get('stream')
+        Level.objects.create(
+            school=school,
+            name=name,
+            stream=stream
+        )
+        return Response(status=status.HTTP_201_CREATED)
     
     def get(self, request):
         school =request.user.school.id
@@ -283,31 +294,56 @@ class Exams (APIView):
 class Subjects(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsHeadTeacherOrTeacher]
-    
-    def get(self, request):
-        school_id = request.user.school.id
-        all_subjects = Subject.objects.filter(school=school_id)
-        serialized_data = SubjectSerializer(all_subjects, many=True)
-        
-        response_data = []
-        
-        for data in serialized_data.data:
-            level_id = data['level']
-            level = Level.objects.get(id=level_id)
-            level_name = level.name
-            level_stream = level.stream
+    def post(self, request):
+            # Check if the request body is empty
+            if not request.body:
+                return Response({'error': 'Request body is empty'}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError:
+                return Response({'error': 'Invalid JSON format in request body'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Now you can proceed with handling the JSON data
+            school = School.objects.get(id=request.user.school.id)
+            name = data.get('name')
+            level = data.get('level')
+            level = Level.objects.get(id=level)
+            required = data.get('required')
             
-            if level_stream is not None:
-                data['level_name'] = level_name
-                data['level_stream'] = level_stream
-                response_data.append(data)
-            data['level_name'] = level_name
-        response_data.append(data)
-        
-        if response_data:
-            return Response(response_data, status=status.HTTP_200_OK)
-        else:
-            return Response(response_data,status=status.HTTP_200_OK)
+
+            Subject.objects.create(
+                name=name,
+                school=school,
+                level=level,
+                required=required,
+            )
+
+            return Response(status=status.HTTP_201_CREATED)
+    def get(self, request):
+            school_id = request.user.school.id
+            all_subjects = Subject.objects.filter(school = school_id)
+            serialized_data = SubjectSerializer(all_subjects, many=True)
+            
+            response_data = []
+            for data in serialized_data.data:
+                level_id = data['level']
+                level = Level.objects.get(id=level_id)
+                level_name = level.name
+                level_stream = level.stream
+                
+                if level_stream is not None:
+                    data['level_name'] = level_name
+                    data['level_stream'] = level_stream
+                    response_data.append(data)
+                else:
+                    data['level_name'] = level_name
+                    response_data.append(data)
+            
+            if response_data:
+                return Response(response_data, status=status.HTTP_200_OK)
+            else:
+                return Response(response_data, status=status.HTTP_200_OK)
         
 class FreeSubjects(APIView):
     authentication_classes = [JWTAuthentication]
@@ -439,8 +475,9 @@ class BulkInsertMarksView(APIView):
                 student_id = mark.get('admission_number')
                 score = mark.get('mark')
                 if score is not None:
-                    grade = self.determine_grade(score)
                     student = Student.objects.get(admission_number=student_id)
+                    curriculum = student.curriculum.name
+                    grade = self.determine_grade(score, curriculum)
                     exam = Exam.objects.get(id=exam_id)
                     subject = Subject.objects.get(id=subject_id)
                     year = AcademicYear.objects.get(id=year_id)
@@ -479,21 +516,65 @@ class BulkInsertMarksView(APIView):
             print(str(e))
             return Response({'error': str(e)}, status=400)
         
-    def determine_grade(self, score):
-            """Determine grade based on score."""
-            try:
-                score = float(score)  # Ensure score is in correct format to compare
-            except ValueError:
-                return 'Invalid'  # or handle invalid score format as needed
+    # def determine_grade(self, score):
+    #         """Determine grade based on score."""
+    #         try:
+    #             score = float(score)  # Ensure score is in correct format to compare
+    #         except ValueError:
+    #             return 'Invalid'  # or handle invalid score format as needed
 
+    #         if 80 <= score <= 100:
+    #             return 'EE'
+    #         elif 50 <= score < 79:
+    #             return 'ME'
+    #         elif 30 <= score < 49:
+    #             return 'AE'
+    #         else:
+    #             return 'BE'
+
+    def determine_grade(self, score, curriculum):
+        """Determine grade based on score and curriculum."""
+        try:
+            score = float(score) # Ensure score is in correct format to compare
+        except ValueError:
+            return 'Invalid' # or handle invalid score format as needed
+
+        if curriculum == 'CBC':
             if 80 <= score <= 100:
                 return 'EE'
-            elif 50 <= score < 79:
+            elif 60 <= score < 80:
                 return 'ME'
-            elif 30 <= score < 49:
+            elif 40 <= score < 60:
                 return 'AE'
             else:
                 return 'BE'
+        elif curriculum == 'CAMBRIDGE':
+            if 80 <= score <= 100:
+                return 'A*'
+            elif 70 <= score < 80:
+                return 'A'
+            elif 60 <= score < 70:
+                return 'B'
+            elif 50 <= score < 60:
+                return 'C'
+            elif 40 <= score < 50:
+                return 'D'
+            else:
+                return 'E'
+        elif curriculum == 'EDEXCEL':
+            if 80 <= score <= 100:
+                return 'A'
+            elif 70 <= score < 80:
+                return 'B'
+            elif 60 <= score < 70:
+                return 'C'
+            elif 50 <= score < 60:
+                return 'D'
+            else:
+                return 'E'
+        else:
+            return 'Invalid Curriculum'
+
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -1894,6 +1975,14 @@ def all_school_members(request):
     serializer = UserSerializer(all , many = True)
     return Response(data=serializer.data , status=status.HTTP_200_OK)
 
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAllUsers])       
+def all_curriculum(request):
+    all = Curriculum.objects.all()
+    serializer = CurriculumSerializer(all , many = True)
+    return Response(data=serializer.data , status=status.HTTP_200_OK)
+
 
 class ChangePasswordView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -1938,10 +2027,9 @@ class PasswordResetRequestAPIView(APIView):
         subject = 'Reset your password'
         from_email = settings.EMAIL_HOST_USER
         to_email = email
-
-        # Specify both plain text and HTML content
-        text_content = ''  # Empty string for plain text content
-        email = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
+        plain_message = strip_tags(html_message)
+        body= plain_message
+        email = EmailMultiAlternatives(subject,body, from_email, [to_email])
         email.attach_alternative(html_message, "text/html")  # Attach HTML content
         #send email
         email.send()
@@ -1978,6 +2066,39 @@ class PasswordResetConfirmAPIView(APIView):
             return Response({'detail': 'Password reset successfully'}, status=status.HTTP_200_OK)
         else:
             return Response({'detail': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+#school stats
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacher])
+def get_users_count(request):
+    user = request.user
+    teachers = User.objects.filter(type='teacher', school=user.school.id , is_active=True).count()
+    parents = User.objects.filter(type='parent', school=user.school.id).count()
+    students = Student.objects.filter(school=user.school.id).count()
+    data = {
+        'teachers': teachers,
+        'parents': parents,
+        'students': students
+    }
+    return Response(data = data , status=status.HTTP_200_OK)
+
+#teacher stats
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsTeacher])
+def get_teacher_stats(request):
+    user = request.user
+    subjects = TeacherSubject.objects.filter(teacher=user).count()
+    reports = Report.objects.filter(teacher = user).count()
+    total_earned = Payslip.objects.filter(employee=user ,paid=True).aggregate(total = Sum('net_salary')) 
+    data = {
+        'subjects': subjects,
+        'reports': reports,
+        'total_earned': total_earned
+    }
+    return Response(data = data , status=status.HTTP_200_OK)
 
 
 

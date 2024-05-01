@@ -14,6 +14,9 @@ urlpatterns = [
     path('actions/my/student/level/<int:level>',views.get_my_kid),
     path('actions/my/student/',views.get_my_kid),
     path('actions/all/school/staff/',views.all_school_members),
+    path('actions/stats/all/members/count' , views.get_users_count),
+    path('actions/stats/all/teacher/items' , views.get_teacher_stats),
+   
    
     #token
     path('auth/token/', views.MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -114,6 +117,11 @@ urlpatterns = [
     path('reset-password/', views.PasswordResetRequestAPIView.as_view()),
     path('reset-password/confirm/', views.PasswordResetConfirmAPIView.as_view()),
     path('app/auth/change/password' , views.ChangePasswordView.as_view()),
+
+    #curriclulum
+    path('app/fetch/curriculum/all' , views.all_curriculum),
+
+
 
 
 ]

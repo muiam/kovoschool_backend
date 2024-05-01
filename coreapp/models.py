@@ -46,6 +46,9 @@ class User(AbstractUser):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS =[]
 
+class Curriculum(models.Model):
+     name = models.CharField(max_length=30 , null=True , blank=True)
+
 
 class Level(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE)
@@ -63,7 +66,9 @@ class Student(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE)
     parent = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'type': 'parent'})
     active = models.BooleanField(default=True)
+    curriculum = models.ForeignKey(Curriculum , on_delete=models.CharField )
     current_level = models.ForeignKey(Level, on_delete = models.CASCADE)
+
 
     class Meta:
          unique_together = ('admission_number', 'school')

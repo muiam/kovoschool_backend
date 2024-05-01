@@ -1,6 +1,6 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import AcademicYear, CarryForward, Exam, ExamResult, Fee, FeeBalance, Level, Month, Notification, Payslip, Report, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year
+from .models import AcademicYear, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, Level, Month, Notification, Payslip, Report, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year
 from rest_framework import serializers
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -53,6 +53,12 @@ class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
         fields = ('id','name')
+
+class CurriculumSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Curriculum
+        fields = ('id','name')
+
 class YearsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Year
@@ -350,7 +356,7 @@ class RegisterStudentSerializer(serializers.ModelSerializer):
 
         class Meta:
             model = Student
-            fields = ['admission_number', 'name', 'parent','parent_name', 'active', 'current_level']
+            fields = ['admission_number', 'name', 'parent','parent_name', 'active', 'current_level','curriculum']
 
         def validate(self, data):
             admission_number = data.get('admission_number')
