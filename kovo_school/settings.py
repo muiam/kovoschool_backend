@@ -26,7 +26,6 @@ SECRET_KEY = 'django-insecure-en_gbgmh64)^&y!o3x4r7h(ty6un@1%s5y6ae4_&hin#pp6tof
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
 ALLOWED_HOSTS = ['kovoschool-backend.vercel.app', '127.0.0.1']
 
 CORS_ALLOW_ALL_ORIGINS=True
@@ -169,10 +168,22 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_HOST_USER = 'projecttestmail32@gmail.com'
+# EMAIL_HOST_PASSWORD = 'damtcfhiodplreje'
+# EMAIL_USE_TLS = True
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST = 'smtp.zoho.com'
 EMAIL_PORT = 587
-EMAIL_HOST_USER = 'projecttestmail32@gmail.com'
-EMAIL_HOST_PASSWORD = 'damtcfhiodplreje'
+EMAIL_HOST_USER = 'no-reply@shulea.com'
+EMAIL_HOST_PASSWORD = 'no-reply@shulea123@PasswordHard@Known@'
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# no-reply@shulea123@PasswordHard@Known
+# no-reply@shulea.com

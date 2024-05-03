@@ -351,7 +351,7 @@ class FreeSubjects(APIView):
     
     def get(self, request):
         school_id = request.user.school.id
-        all_subjects = Subject.objects.filter(school=school_id, assigned=False)
+        all_subjects = Subject.objects.filter(school=school_id)
         serialized_data = SubjectSerializer(all_subjects, many=True).data
         
         response_data = []
@@ -2022,7 +2022,7 @@ class PasswordResetRequestAPIView(APIView):
 
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        reset_link = f"http://localhost:5173/reset-password/confirm/?uid={uid}&token={token}"
+        reset_link = f"https://app.shulea.com/reset-password/confirm/?uid={uid}&token={token}"
         html_message = render_to_string('password_reset_template.html', {'reset_link': reset_link})
         subject = 'Reset your password'
         from_email = settings.EMAIL_HOST_USER
