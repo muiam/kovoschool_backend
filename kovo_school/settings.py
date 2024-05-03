@@ -25,10 +25,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-en_gbgmh64)^&y!o3x4r7h(ty6un@1%s5y6ae4_&hin#pp6tof'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 ALLOWED_HOSTS = ['kovoschool-backend.vercel.app', '127.0.0.1']
 
-CORS_ALLOW_ALL_ORIGINS=True
+CORS_ALLOWED_ORIGINS = [
+    "https://app.shulea.com",
+]
 
 # Application definition
 
