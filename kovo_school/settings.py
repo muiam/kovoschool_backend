@@ -97,27 +97,30 @@ WSGI_APPLICATION = 'kovo_school.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-# user=postgres.tfsvpozvyrhyzcpeobvm 
-# password=[YOUR-PASSWORD]  =>xoVxonJwnU7sQ80P
-# host=aws-0-ap-southeast-2.pooler.supabase.com 
-# port=5432 
-# dbname=postgres
+
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'postgres',
-        'USER': 'postgres.tfsvpozvyrhyzcpeobvm',
-        'PASSWORD': 'xoVxonJwnU7sQ80P',
-        'HOST': 'aws-0-ap-southeast-2.pooler.supabase.com',
-        'PORT': '5432',
+        'NAME': 'defaultdb',
+        'USER': 'avnadmin',
+        'PASSWORD': 'AVNS_q4UtjjGhpvxtYPNgyvR',
+        'HOST': 'shulea-mwendwaharry01-677d.j.aivencloud.com',
+        'PORT': '10702',
     }
 }
+
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
+#         'NAME': 'postgres',
+#         'USER': 'postgres.tfsvpozvyrhyzcpeobvm',
+#         'PASSWORD': 'xoVxonJwnU7sQ80P',
+#         'HOST': 'aws-0-ap-southeast-2.pooler.supabase.com',
+#         'PORT': '5432',
+#     }
+# }
 
 
 # Password validation
