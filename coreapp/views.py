@@ -307,19 +307,33 @@ class Subjects(APIView):
             # Now you can proceed with handling the JSON data
             school = School.objects.get(id=request.user.school.id)
             name = data.get('name')
-            level = data.get('level')
-            level = Level.objects.get(id=level)
+            level_id = data.get('level')
+            all=data.get('all')
             required = data.get('required')
-            
+            if all:
+                levels=Level.objects.filter(school=school)
+                if not levels:
+                    return Response(status=status.HTTP_404_NOT_FOUND)
 
-            Subject.objects.create(
+                for lv in levels:
+                    Subject.objects.create(
+                    name=name,
+                    school=school,
+                    level=lv,
+                    required=required,
+                )
+                return Response(status=status.HTTP_201_CREATED)
+
+
+            else:
+                level = Level.objects.get(id=level_id)
+                Subject.objects.create(
                 name=name,
                 school=school,
                 level=level,
                 required=required,
             )
-
-            return Response(status=status.HTTP_201_CREATED)
+                return Response(status=status.HTTP_201_CREATED)
     def get(self, request):
             school_id = request.user.school.id
             all_subjects = Subject.objects.filter(school = school_id)
@@ -922,6 +936,7 @@ class NewPayslip(APIView):
             total_allowances = serializer.validated_data.get('total_allowances', 0)
 
             # Calculate total deductions
+            employee_id= serializer.validated_data.get('employeeID')
             tax = serializer.validated_data.get('tax', 0)
             social_security = serializer.validated_data.get('social_security', 0)
             health_insurance = serializer.validated_data.get('health_insurance', 0)
@@ -929,10 +944,6 @@ class NewPayslip(APIView):
             advance_salary = serializer.validated_data.get('advance_salary', 0)
             affordable_housing = serializer.validated_data.get('affordable_housing', 0)
             total_deductions = tax + social_security + health_insurance + other_deductions + advance_salary + affordable_housing
-            print("total deductions", total_deductions)
-            print("total allowances" , total_allowances)
-            print("total gross salary" , gross_salary)
-            # Calculate net salary based on gross salary or total allowances
             if gross_salary == 0:
                 net_salary = total_allowances - total_deductions 
                 print("next salary as a result of total allowances", net_salary)
@@ -946,6 +957,26 @@ class NewPayslip(APIView):
 
             # Save the serializer
             serializer.save()
+            school = School.objects.get(id=user_school)
+            recipient = User.objects.get(id=employee_id)
+            Notification.objects.create(
+                    recipient = recipient,
+                    school = school,
+                    title ='you received a new payslip item',
+                    message = 'Hi, your efforts are valued. Your institution added a payslip item into your account\n . Login to have a look at it\n. Success \n'
+                )
+            
+            #send email
+            html_message = render_to_string('pasylip_notification.html', {'user': recipient.first_name , 'school': request.user.school.name})
+            subject = 'you got paid'
+            from_email = settings.EMAIL_HOST_USER
+            to_email = recipient.email
+            plain_message = strip_tags(html_message)
+            body= plain_message
+            email = EmailMultiAlternatives(subject, body, from_email, [to_email])
+            email.attach_alternative(html_message, "text/html")  # Attach HTML content
+            #send email
+            email.send()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         elif 'non_field_errors' in serializer.errors and serializer.errors['non_field_errors'][0] == "An employee can have only one payslip per month.":
             # If the error is related to the uniqueness constraint, return a custom error message
@@ -1575,6 +1606,21 @@ class MyStudentReport(APIView):
                 comments=comments,
                 next_week_goals=next_week_goals
             )
+            more_data = Student.objects.get(id=student)
+            parent = more_data.parent
+            Notification.objects.create(
+                    recipient = parent,
+                    sender = request.user,
+                    school = school,
+                    title ='New report item for your kid',
+                    message = 'Hi, you received a new report item for your kid \n. Make sure you have a look at it \n'
+                )
+            Notification.objects.create(
+                    recipient = request.user,
+                    school = school,
+                    title ='you added a new report item',
+                    message = 'Hi, your new report item was shared to both you , the parent and your school \n. success \n'
+                )
             return Response(status=status.HTTP_201_CREATED)
 
 class MyKidReport(APIView):

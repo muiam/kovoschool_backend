@@ -331,11 +331,22 @@
           object-fit: cover;
           height: 100px;
         }
+        .got-paid {
+          width: 100%;
+          height: 200px;
+          margin-bottom: 20px;
+          margin-top: 20px;
+        }
+        .got-paid img {
+          object-fit: cover;
+          height: 100%;
+          width: 100%;
+        }
       }
     </style>
     <meta name="viewport" content="width=device-width" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>Welcome to shulea</title>
+    <title>You got paid!</title>
   </head>
   <body class="">
     <table
@@ -382,13 +393,17 @@
                     <tr>
                       <td>
                         <p>Hi {{user}},</p>
-                        <p>Welcome to shulea!</p>
+                        <p>Your hard work pays!</p>
+                        <div class="got-paid">
+                          <img
+                            src="https://thumbs.dreamstime.com/b/gold-coin-bag-money-illustration-57293681.jpg?w=768"
+                            alt="got paid image"
+                          />
+                        </div>
                         <p>
-                          {{school}} has invited you to use shulea in matters
-                          containing the school processes. You can login into
-                          your portal account and manage both your data and
-                          track your child's performance as you get regular
-                          school updates easily all under shulea
+                          {{school}} added a new payslip item on your shulea
+                          account a few minutes ago. Please login into your
+                          portal and check it
                         </p>
                         <table
                           role="presentation"
@@ -420,7 +435,7 @@
                                             border-radius: 5px;
                                             border: 1px solid black;
                                           "
-                                          >Login here</a
+                                          >Login</a
                                         >
                                       </td>
                                     </tr>
@@ -431,17 +446,16 @@
                           </tbody>
                         </table>
                         <p>
-                          To login into your account , click the button above
-                          and then click on forgot password. You will see a tab
-                          to enter your email. Be sure to enter this same email
-                          you have been invited with and a link to reset your
-                          password will be send to your email
+                          To login into your account , enter your email and
+                          password. If you forgot your shulea account password,
+                          please click on "forgot password" link and reset
+                          accordingly as prompted
                         </p>
 
                         <p>
                           Proceed to enter a password of your choice and login
-                          with the same credentials into your account. Welcome
-                          to shulea once again!
+                          with the same credentials into your account.
+                          Congratulations for your hardwork once again
                         </p>
                       </td>
                     </tr>
