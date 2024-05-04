@@ -178,7 +178,7 @@ class PayslipsSerializer(serializers.ModelSerializer):
         return obj.employee.first_name  
     def get_last_name(self, obj):
         # Get the name of the month
-        return obj.employee.last_name  
+        return obj.employee.second_name  
 
 class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
