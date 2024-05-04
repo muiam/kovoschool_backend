@@ -1696,13 +1696,13 @@ def all_weeks_data(request):
         week_data.append(data)
     return Response(data= week_data, status=status.HTTP_200_OK) 
 
-import datetime
+from datetime import date
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsHeadTeacher])
 def save_current_week(request):
     school_id = request.user.school.id
-    today = datetime.date.today()
+    today = date.today()
     current_week_number = (today.day - 1) // 7 + 1
     current_month = today.strftime("%B")  # Get the full month name
     current_year = today.year
@@ -1712,8 +1712,11 @@ def save_current_week(request):
 
     if existing_week is None:
         # If the week doesn't exist, create a new one
-        Week.objects.create(name=week_name, school_id=school_id)
-        return Response(data={"message": f"Week '{week_name}' saved successfully for school {school_id}"}, status=status.HTTP_201_CREATED)
+        try:
+            Week.objects.create(name=week_name, school_id=school_id)
+            return Response(data={"message": f"Week '{week_name}' saved successfully for school {school_id}"}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print(str(e.errors))
     else:
         # If the week already exists, return a message indicating it
         return Response(data={"message": f"Week '{week_name}' already exists for school {school_id}"}, status=status.HTTP_200_OK)
