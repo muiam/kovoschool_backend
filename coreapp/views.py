@@ -283,9 +283,10 @@ class Exams (APIView):
             raise Http404("Year ID parameter is required")
 
         school =request.user.school.id
-        allExams = Exam.objects.filter(school =school,term =term_id ,year =year_id , published=True).order_by('-id')
+        allExams = Exam.objects.filter(school =school,term =term_id ,year =year_id).order_by('-id')
         serializedData = ExamSerializer(allExams,many =True)
         if allExams.exists():
+            print(serializedData.data)
             return Response( data=serializedData.data, status=status.HTTP_200_OK)
         else:
             return Response(status=status.HTTP_404_NOT_FOUND)
