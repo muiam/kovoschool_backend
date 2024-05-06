@@ -1900,7 +1900,7 @@ def get_my_learner_year_achievement(request, student_id=None):
             return Response({"message": "No student found for the parent."}, status=status.HTTP_404_NOT_FOUND)
         else:
             student_id = first_student.id
-    exams = Exam.objects.filter(year=year, school=school , published=True)
+    exams = Exam.objects.filter(year=year, school=school)
     exam_results = []
     for exam in exams:
         exam_result = ExamResult.objects.filter(exam=exam, student_id=student_id).aggregate(total_score=Sum('score'))
