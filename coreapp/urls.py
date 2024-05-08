@@ -16,6 +16,10 @@ urlpatterns = [
     path('actions/all/school/staff/',views.all_school_members),
     path('actions/stats/all/members/count' , views.get_users_count),
     path('actions/stats/all/teacher/items' , views.get_teacher_stats),
+    path('actions/all/financials/items/revenue' ,views.get_revenue_items ),
+    path('actions/all/financials/items/expense' , views.get_expenses_items),
+   
+
    
    
     #token

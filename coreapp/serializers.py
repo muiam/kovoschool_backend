@@ -1,6 +1,6 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import AcademicYear, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, Level, Month, Notification, Payslip, Report, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year
+from .models import AcademicYear, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, Level, Month, Notification, Payslip, Report, Student, Subject, TeacherSubject, Term, Transaction, TransactionItem, User, Week, Year
 from rest_framework import serializers
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -53,6 +53,12 @@ class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
         fields = ('id','name')
+
+
+class TransactionItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TransactionItem
+        fields = '__all__'
 
 class CurriculumSerializer(serializers.ModelSerializer):
     class Meta:
@@ -186,9 +192,13 @@ class SubjectSerializer(serializers.ModelSerializer):
         fields = ('name',)
 
 class TransactionSerializer(serializers.ModelSerializer):
+    head_name = serializers.SerializerMethodField()
     class Meta:
         model = Transaction
         fields = '__all__'
+    def get_head_name(self, obj):
+         return obj.head.name  
+
 
 class StudentSerializer(serializers.ModelSerializer):
     class Meta:

@@ -9,10 +9,10 @@ from kovo_school import settings
 from .permissions import IsAllExceptParent, IsAllUsers, IsFinance, IsHeadTeacher, IsHeadTeacherOrTeacher, IsParent, IsTeacher
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .models import AcademicYear, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Notification, Payslip, School, Student, Subject, TeacherSubject, Term, Transaction, User, Week, Year, Report
+from .models import AcademicYear, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Notification, Payslip, School, Student, Subject, TeacherSubject, Term, Transaction, TransactionItem, User, Week, Year, Report
 from django.contrib.auth import logout
 
-from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, CarryFowardSerializer, ChangePasswordSerializer, CurriculumSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
+from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, CarryFowardSerializer, ChangePasswordSerializer, CurriculumSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionItemSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
 from rest_framework import status
 from django.db.models import Q
 from django.db.models import Count,Sum,F,IntegerField
@@ -1495,12 +1495,23 @@ def save_revenue(request):
     amount = data.get('amount')
     description = data.get('description')
     receipt_number = data.get('receipt_number')
+    revenue_item = data.get('revenueItem')
+    revenue_item = TransactionItem.objects.get(id=revenue_item)
+    if amount == "":
+         return Response(status=status.HTTP_403_FORBIDDEN)
+    if description == "":
+         return Response(status=status.HTTP_403_FORBIDDEN)
+    if receipt_number == "":
+         return Response(status=status.HTTP_403_FORBIDDEN)
+    if revenue_item == "":
+         return Response(status=status.HTTP_403_FORBIDDEN)
     try:
         Transaction.objects.create(
             school = school,
             amount=amount,
             description=description,
             receipt_number=receipt_number,
+            head = revenue_item,
             type ='revenue'
         )
         return Response(status= status.HTTP_201_CREATED)
@@ -1519,12 +1530,23 @@ def save_expenditure(request):
     amount = data.get('amount')
     description = data.get('description')
     receipt_number = data.get('receipt_number')
+    expenditure_item = data.get('ExpenditureItem')
+    expenditure_item = TransactionItem.objects.get(id=expenditure_item)
+    if amount == "":
+         return Response(status=status.HTTP_403_FORBIDDEN)
+    if description == "":
+         return Response(status=status.HTTP_403_FORBIDDEN)
+    if receipt_number == "":
+         return Response(status=status.HTTP_403_FORBIDDEN)
+    if expenditure_item == "":
+         return Response(status=status.HTTP_403_FORBIDDEN)
     try:
         Transaction.objects.create(
             school = school,
             amount=amount,
             description=description,
             receipt_number=receipt_number,
+            head = expenditure_item,
             type ='expenditure'
         )
         return Response(status= status.HTTP_201_CREATED)
@@ -2149,6 +2171,22 @@ def get_teacher_stats(request):
         'total_earned': total_earned
     }
     return Response(data = data , status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def get_revenue_items(request):
+    revenue = TransactionItem.objects.filter(type='revenue')
+    serializer = TransactionItemSerializer(revenue , many =True)
+    return Response(data =serializer.data , status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def get_expenses_items(request):
+    expense = TransactionItem.objects.filter(type='expense')
+    serializer = TransactionItemSerializer(expense, many=True)
+    return Response(data =serializer.data , status=status.HTTP_200_OK)
 
 
 

@@ -223,7 +223,13 @@ class Payslip(models.Model):
         return self.date.date()
 
     # def __str__(self):
-    #     return f"{self.employee.email}'s Payslip for {self.month}"
+    #   
+    #   return f"{self.employee.email}'s Payslip for {self.month}"
+
+class TransactionItem(models.Model):
+       name = models.CharField(max_length=30)
+       type = models.CharField(max_length=20)
+
 
 class Transaction(models.Model):
     school = models.ForeignKey(School ,on_delete=models.CASCADE)
@@ -231,6 +237,7 @@ class Transaction(models.Model):
     description = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     type = models.CharField(max_length=20)
+    head= models.ForeignKey(TransactionItem , on_delete=models.DO_NOTHING)
     date = models.DateField(auto_now_add=True)
 
 class Week(models.Model):
