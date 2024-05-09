@@ -6,6 +6,7 @@ urlpatterns = [
     path('actions/teacher' , views.RegisterTeacher.as_view()),
     path('actions/parent' , views.RegisterParent.as_view()),
     path('actions/student',views.RegisterStudent.as_view()),
+    path('actions/student/all',views.get_my_school_students_all),
     path('actions/student/level/<int:level>',views.get_my_school_students),
     path('actions/subject/level/<int:level>' , views.get_my_subject_per_level),
     path('actions/subject' , views.Subjects.as_view()),

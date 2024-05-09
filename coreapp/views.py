@@ -448,7 +448,6 @@ class StudentsMarksFetch(APIView):
                         'name': student_details.name,
                         'id': student_details.id
                     }
-                    print("student data is" , student_data)
                     student_data_list.append(student_data)
 
             if student_data_list:
@@ -873,7 +872,9 @@ def find_student_scores(request, year_id, term_id, exam_id, level_id, student_id
         serialized_data = serializer.data
 
         # Prepare response data with total marks, exam-wise totals, and percentage change
+        student = Student.objects.get(id=student_id)
         response_data = {
+            'student_current_grade' : student.current_level.id,
             'exam_results': serialized_data,
             'total_marks': total_marks.get(exam_id, 0),  # Get total marks for the current exam
             'previous_total_marks': previous_total_marks,
@@ -1750,6 +1751,15 @@ def save_current_week(request):
 def get_my_school_students(request, level):
     school = request.user.school.id
     students = Student.objects.filter(current_level = level , school=school)
+    serializer = StudentSerializer(students , many=True)
+    return Response(data = serializer.data , status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsHeadTeacherOrTeacher])
+def get_my_school_students_all(request):
+    school = request.user.school.id
+    students = Student.objects.filter(school=school)
     serializer = StudentSerializer(students , many=True)
     return Response(data = serializer.data , status=status.HTTP_200_OK)
 
