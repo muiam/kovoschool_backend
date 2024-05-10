@@ -70,6 +70,7 @@ urlpatterns = [
     path('all/financial/our/school/total/wallet', views.calculate_total_carryforward),
     path('all/financial/our/school/fee/paid/list/<str:year_id>/<str:term_id>/<str:level_id>/<str:fee_id>/', views.display_student_balances),
     path('all/financial/our/school/transactions/', views.get_transactions_summary),
+    path('all/financial/our/school/transactions/<str:start_date>/<str:end_date>', views.get_transactions_summary),
     path('all/financial/our/school/fee/balances/<int:year>', views.all_get_fee_balances),
     path('all/financial/our/school/fee/balances/<int:year>/<int:level>', views.all_get_fee_balances),
     path('all/financial/our/school/save/revenue' , views.save_revenue),
@@ -77,6 +78,9 @@ urlpatterns = [
     path('all/financial/our/school/save/new/fee' , views.get_add_school_fee),
     path('all/financial/our/school/stats/revenues-expenditure/for/year/<int:year>' , views.revenue_vs_expenditure),
     path('all/financial/mykid/fee/statements/<str:year>/<str:term>/<str:fee>/<str:grade>/<str:student>', views.get_my_kid_fee_statements),
+    path('all/financials/our/school/ledger/items/stats' , views.calculate_transaction_item_amounts),
+    path('all/financials/our/school/ledger/items/sort/ranges/dates' , views.get_transaction_dates),
+
 
     #others
     path('app/weeks/all-weeks', views.all_weeks) ,

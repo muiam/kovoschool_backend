@@ -26,6 +26,8 @@ from django.utils.timezone import timedelta
 from django.utils import timezone
 from django.utils.html import strip_tags
 from . import models
+from django.utils.dateparse import parse_date
+from django.db.models.functions import TruncDate
 
 # Create your views here.
 
@@ -189,11 +191,24 @@ def deactivateUser(request):
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsFinance])
 def pay_pasyslip(request):
+    school = request.user.school.id
+    school = School.objects.get(id=school)
+    expenditure_item = TransactionItem.objects.get(id=5)
     slip_id = request.query_params.get('id', '').strip()
+
     try:
         slip = Payslip.objects.get(id=slip_id)
+
         slip.paid =True
         slip.save()
+        Transaction.objects.create(
+            school = school,
+            amount=slip.net_salary,
+            description='staff payment',
+            receipt_number=generate_receipt_number_for_random_use(request),
+            head = expenditure_item,
+            type ='expenditure'
+        )
         return Response(status=status.HTTP_200_OK)
     except User.DoesNotExist:
         return Response( status=status.HTTP_400_BAD_REQUEST)
@@ -956,11 +971,10 @@ class NewPayslip(APIView):
             # Update net_salary and total_deductions in serializer data
             serializer.validated_data['net_salary'] = net_salary
             serializer.validated_data['total_deductions'] = total_deductions
-
             # Save the serializer
             serializer.save()
             school = School.objects.get(id=user_school)
-            recipient = User.objects.get(id=employee_id)
+            recipient = User.objects.get(employee_id=employee_id)
             Notification.objects.create(
                     recipient = recipient,
                     school = school,
@@ -969,7 +983,7 @@ class NewPayslip(APIView):
                 )
             
             #send email
-            html_message = render_to_string('pasylip_notification.html', {'user': recipient.first_name , 'school': request.user.school.name})
+            html_message = render_to_string('payslip_notification.html', {'user': recipient.first_name , 'school': request.user.school.name})
             subject = 'you got paid'
             from_email = settings.EMAIL_HOST_USER
             to_email = recipient.email
@@ -1154,6 +1168,18 @@ def generate_receipt_number(request):
 
     return Response(status=status.HTTP_200_OK , data=final_receipt_number)
 
+
+def generate_receipt_number_for_random_use(request):
+    # Generate a 10-digit number
+    receipt_number = ''.join(random.choice('0123456789') for _ in range(10))
+    
+    # Generate 2 random alphabets
+    alphabets = ''.join(random.choice(string.ascii_uppercase) for _ in range(2))
+    
+    # Concatenate the 10-digit number with the 2 random alphabets
+    final_receipt_number = alphabets+receipt_number
+    return final_receipt_number
+
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsFinance])
@@ -1176,8 +1202,6 @@ def fee_payment_over(request):
         term = Term.objects.get(pk=term_id)
 
         fee_paid_for = Fee.objects.get(id= fee_id , level =level_id , academic_year =academic_year ,term=term)
-        print("feed needed",fee_paid_for.amount)
-
         fee_payments = FeePayment.objects.filter(
                 student=student,
                 academic_year=academic_year_id,
@@ -1199,7 +1223,7 @@ def fee_payment_over(request):
             print("overpayment" , balance)
             
             print("you are paying", paid)
-            fee_payment = FeePayment.objects.create(
+            FeePayment.objects.create(
             student=student,
             fee=fee,
             amount_paid=paid,
@@ -1209,7 +1233,17 @@ def fee_payment_over(request):
             term=term,
             overpay = balance
             )
-            fee_payment.save()
+            school = School.objects.get(id=request.user.school.id)
+            head = TransactionItem.objects.get(id=1)
+            Transaction.objects.create(
+                school = school,
+                type = 'revenue',
+                head = head,
+                amount = paid,
+                receipt_number = receipt_number,
+                description = 'student fee'
+            )
+            
         try:
             total_unused_amount = CarryForward.objects.get(student=student)
             total_unused_amount.amount = balance
@@ -1219,7 +1253,7 @@ def fee_payment_over(request):
             
         else:
             #print("there will be a balance")
-            fee_payment = FeePayment.objects.create(
+            FeePayment.objects.create(
             student=student,
             fee=fee,
             amount_paid=amount_paid,
@@ -1228,7 +1262,15 @@ def fee_payment_over(request):
             academic_year=academic_year,
             term=term
             )
-            fee_payment.save()
+            Transaction.objects.create(
+                school = school,
+                type = 'revenue',
+                head = head,
+                amount = amount_paid,
+                receipt_number = receipt_number,
+                description = 'student fee'
+            )
+           
             try:
                 total_unused_amount = CarryForward.objects.get(student=student)
                 total_unused_amount.amount = balance
@@ -1279,7 +1321,7 @@ def fee_payment_direct(request):
         if new_total >fee_paid_for.amount:
             overpay = new_total-fee_paid_for.amount
             paid = fee_paid_for.amount - total_paid
-            fee_payment = FeePayment.objects.create(
+            FeePayment.objects.create(
             student=student,
             fee=fee,
             amount_paid=paid,
@@ -1289,7 +1331,16 @@ def fee_payment_direct(request):
             term=term,
             overpay = overpay
             )
-            fee_payment.save()
+            school = School.objects.get(id=request.user.school.id)
+            head = TransactionItem.objects.get(id=1)
+            Transaction.objects.create(
+                school = school,
+                type = 'revenue',
+                head = head,
+                amount = paid,
+                receipt_number = receipt_number,
+                description = 'student fee'
+            )
             try:
                 total_unused_amount = CarryForward.objects.get(student=student)
                 total_unused_amount.amount = overpay
@@ -1298,7 +1349,7 @@ def fee_payment_direct(request):
                 total_unused_amount= CarryForward.objects.create(student=student, amount=overpay)
             return Response(status=status.HTTP_201_CREATED)
         else:
-            fee_payment = FeePayment.objects.create(
+            FeePayment.objects.create(
             student=student,
             fee=fee,
             amount_paid=amount_paid,
@@ -1307,7 +1358,16 @@ def fee_payment_direct(request):
             academic_year=academic_year,
             term=term,
             )
-            fee_payment.save()
+            school = School.objects.get(id=request.user.school.id)
+            head = TransactionItem.objects.get(id=1)
+            Transaction.objects.create(
+                school = school,
+                type = 'revenue',
+                head = head,
+                amount = amount_paid,
+                receipt_number = receipt_number,
+                description = 'student fee'
+            )
             return Response(status=status.HTTP_201_CREATED)
 
 
@@ -1446,25 +1506,47 @@ def display_student_balances(request, level_id, year_id, term_id, fee_id):
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsFinance])
-def get_transactions_summary(request):
+def get_transactions_summary(request, start_date=None, end_date=None):
     # Get revenue and expenditure transactions
     school_id = request.user.school.id
-    transactions = Transaction.objects.filter(school_id=school_id).filter(Q(type='revenue') | Q(type='expenditure'))
-    serializer = TransactionSerializer(transactions , many = True)
+    
+    if start_date and end_date:
+        transactions = Transaction.objects.filter(
+            school_id=school_id,
+            date__range=(parse_date(start_date), parse_date(end_date)),
+            type__in=['revenue', 'expenditure']
+        ).order_by('-id')
+    else:
+        transactions = Transaction.objects.filter(
+            school_id=school_id,
+            type__in=['revenue', 'expenditure']
+        ).order_by('-id')
+    
+    serializer = TransactionSerializer(transactions, many=True)
+    
     # Get sum of amounts for revenue transactions
     revenue_sum = transactions.filter(type='revenue').aggregate(revenue_sum=Sum('amount'))['revenue_sum'] or 0
 
     # Get sum of amounts for expenditure transactions
     expenditure_sum = transactions.filter(type='expenditure').aggregate(expenditure_sum=Sum('amount'))['expenditure_sum'] or 0
 
-    data= {
+    data = {
         'revenue_sum': revenue_sum,
         'expenditure_sum': expenditure_sum,
-        'balance':revenue_sum -expenditure_sum,
+        'balance': revenue_sum - expenditure_sum,
         'transactions': serializer.data
-       
     }
-    return Response(data=data , status=status.HTTP_200_OK)
+    return Response(data=data, status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def get_transaction_dates(request):
+    school_id = request.user.school.id
+    transactions = Transaction.objects.filter(school=school_id).annotate(date_only=TruncDate('date')).values_list('date_only', flat=True).distinct()
+    dates = list(transactions)
+    return Response(data={'all_transaction_dates': dates})
+
 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication])
@@ -2084,6 +2166,17 @@ class ChangePasswordView(APIView):
                     title = 'password change',
                     message = f"Hi {request.user.first_name},\nYour password change was initiated successfully. If you didn't perform any password change recently, please contact the support team for assistance.\nBy a copy of this message, an awareness as per the subject above has been made to you.\nRegards"
             )
+            html_message = render_to_string('password_changed.html', {'user': user.first_name})
+            subject = 'you changed your password recently'
+            from_email = settings.EMAIL_HOST_USER
+            to_email = user.email
+            plain_message = strip_tags(html_message)
+            body= plain_message
+            email = EmailMultiAlternatives(subject,body, from_email, [to_email])
+            email.attach_alternative(html_message, "text/html")  # Attach HTML content
+            #send email
+            email.send()
+
             return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -2174,7 +2267,8 @@ def get_teacher_stats(request):
     user = request.user
     subjects = TeacherSubject.objects.filter(teacher=user).count()
     reports = Report.objects.filter(teacher = user).count()
-    total_earned = Payslip.objects.filter(employee=user ,paid=True).aggregate(total = Sum('net_salary')) 
+    total_earned = Payslip.objects.filter(employee=user, paid=True).aggregate(total=Sum('net_salary'))
+    total_earned = total_earned['total'] if total_earned['total'] else 0
     data = {
         'subjects': subjects,
         'reports': reports,
@@ -2198,6 +2292,50 @@ def get_expenses_items(request):
     serializer = TransactionItemSerializer(expense, many=True)
     return Response(data =serializer.data , status=status.HTTP_200_OK)
 
+from django.db.models import Sum, F, Case, When, FloatField
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def calculate_transaction_item_amounts(request, start_date = None , end_date = None):
+    school = request.user.school.id
+    if start_date and end_date:
+        transactions = Transaction.objects.filter(school_id=school, date__range=(start_date, end_date))
+    else:
+        transactions = Transaction.objects.filter(school_id=school)
+
+    items = TransactionItem.objects.all()
+    revenue_data = []
+    expenditure_data = []
+
+    for item in items:
+        item_type_total = transactions.filter(type=item.type).aggregate(total_amount=Sum('amount'))['total_amount']
+        amount = transactions.filter(head=item).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+        if amount:
+            percentage = (amount / item_type_total) * 100
+            percentage = round(percentage, 2)
+        else:
+            percentage = 0
+
+        item_data = {
+            'id': item.id,
+            'item_name': item.name,
+            'type': item.type,
+            'amount': amount,
+            'item_type_total': item_type_total,
+            'percentage': percentage
+        }
+
+        if item.type == 'revenue':
+            revenue_data.append(item_data)
+        elif item.type == 'expenditure':
+            expenditure_data.append(item_data)
+
+    response_data = {
+        'revenue': revenue_data,
+        'expenditure': expenditure_data
+    }
+
+    return Response(data=response_data, status=status.HTTP_200_OK)
 
 
 
