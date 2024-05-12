@@ -1,6 +1,6 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import AcademicYear, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, Level, Month, Notification, Payslip, Report, Student, Subject, TeacherSubject, Term, Transaction, TransactionItem, User, Week, Year
+from .models import AcademicYear, Bill, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, Level, Month, Notification, Payslip, Report, Student, StudentBill, Subject, TeacherSubject, Term, Transaction, TransactionItem, User, Week, Year
 from rest_framework import serializers
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -190,6 +190,38 @@ class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
         fields = ('name',)
+class BillSerializer(serializers.ModelSerializer):
+    academic_year_name = serializers.SerializerMethodField()
+    term_name = serializers.SerializerMethodField()
+    class Meta:
+        model = Bill
+        fields = '__all__'
+    def get_academic_year_name(self,obj):
+         return obj.Academic_year.name
+    def get_term_name(self,obj):
+         return obj.term.name
+    
+class StudentBillSerializer(serializers.ModelSerializer):
+    student_name = serializers.SerializerMethodField()
+    student_admission_number=serializers.SerializerMethodField()
+    level_name =serializers.SerializerMethodField()
+    bill_name = serializers.SerializerMethodField()
+    class Meta:
+        model = StudentBill
+        fields = '__all__'
+    def get_student_name (self,obj):
+         return obj.student.name
+    def get_student_admission_number(self, obj):
+         return obj.student.admission_number
+    def get_level_name(self,obj):
+             level_name = obj.student.current_level
+             if level_name.stream:
+                    return f"{level_name.name} {level_name.stream}"
+             else:
+                    return level_name.name
+    def get_bill_name(self,obj):
+         return obj.bill.name
+    
 
 class TransactionSerializer(serializers.ModelSerializer):
     head_name = serializers.SerializerMethodField()

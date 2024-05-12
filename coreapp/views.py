@@ -9,10 +9,10 @@ from kovo_school import settings
 from .permissions import IsAllExceptParent, IsAllUsers, IsFinance, IsHeadTeacher, IsHeadTeacherOrTeacher, IsParent, IsTeacher
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .models import AcademicYear, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Notification, Payslip, School, Student, Subject, TeacherSubject, Term, Transaction, TransactionItem, User, Week, Year, Report
+from .models import AcademicYear, Bill, BillPayment, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Notification, Payslip, School, Student, StudentBill, Subject, TeacherSubject, Term, Transaction, TransactionItem, User, Week, Year, Report
 from django.contrib.auth import logout
 
-from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, CarryFowardSerializer, ChangePasswordSerializer, CurriculumSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionItemSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
+from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, BillSerializer, CarryFowardSerializer, ChangePasswordSerializer, CurriculumSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentBillSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionItemSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
 from rest_framework import status
 from django.db.models import Q
 from django.db.models import Count,Sum,F,IntegerField
@@ -1838,11 +1838,20 @@ def get_my_school_students(request, level):
 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsHeadTeacherOrTeacher])
+@permission_classes([IsAllExceptParent])
 def get_my_school_students_all(request):
     school = request.user.school.id
     students = Student.objects.filter(school=school)
     serializer = StudentSerializer(students , many=True)
+    return Response(data = serializer.data , status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def get_my_school_student_bill(request,bill):
+    school = request.user.school.id
+    bill = Bill.objects.get(school=school, id=bill)
+    serializer = BillSerializer(bill)
     return Response(data = serializer.data , status=status.HTTP_200_OK)
 
 @api_view(["GET"])
@@ -2336,6 +2345,210 @@ def calculate_transaction_item_amounts(request, start_date = None , end_date = N
     }
 
     return Response(data=response_data, status=status.HTTP_200_OK)
+
+class PayableBill(APIView):
+     authentication_classes = [JWTAuthentication]
+     permission_classes = [IsFinance]
+     def get(self,request, academic_year = None , term=None):
+            print("academic year is", academic_year , "and term is", term)
+            school = School.objects.get(id=request.user.school.id)
+            if academic_year and term :
+                academic_year = AcademicYear.objects.get(id=academic_year)
+                term = Term.objects.get(id=term)
+                bills = Bill.objects.filter(school = school , term=term, Academic_year = academic_year).order_by('-id')
+            else:
+                bills = Bill.objects.filter(school = school).order_by('-id')
+            serialized_data =BillSerializer(bills, many=True)
+            return Response(data=serialized_data.data , status=status.HTTP_200_OK)
+     
+     def post(self, request):
+            school = request.user.school.id
+            school = School.objects.get(id=school)
+            amount = request.data.get('amount')
+            comment = request.data.get('comment')
+            academic_year = request.data.get('academic_year')
+            academic_year = AcademicYear.objects.get(id=academic_year)
+            term = request.data.get('term')
+            term = Term.objects.get(id=term)
+            name = request.data.get('name')
+
+            if amount == "":
+                return Response (status=status.HTTP_400_BAD_REQUEST)
+            if school == "":
+                return Response (status=status.HTTP_400_BAD_REQUEST)
+            if academic_year == "":
+                return Response (status=status.HTTP_400_BAD_REQUEST)
+            if term == "":
+                return Response (status=status.HTTP_400_BAD_REQUEST)
+            if name == "":
+                return Response (status=status.HTTP_400_BAD_REQUEST)
+            Bill.objects.create(
+                school=school,
+                Academic_year = academic_year,
+                term = term,
+                comment = comment,
+                name = name,
+                amount = amount
+            )
+            return Response(status=status.HTTP_201_CREATED)
+
+class StudentBilled(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsFinance]
+
+    def get(self, request, bill, grade=None):
+        data = []
+        if grade is not None:
+            billed_bills = StudentBill.objects.filter(bill=bill, student__current_level=grade)
+        else:
+            billed_bills = StudentBill.objects.filter(bill=bill)
+
+        for billed_bill in billed_bills:
+            total_paid_amount = BillPayment.objects.filter(student_bill=billed_bill.id).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+            if total_paid_amount < billed_bill.amount:
+                serialized_data = StudentBillSerializer(billed_bill).data
+                serialized_data['total_paid'] = total_paid_amount
+                data.append(serialized_data)
+        return Response(data=data, status=status.HTTP_200_OK)
+
+
+    def post(self,request , type,bill):
+        school = request.user.school.id
+        school = School.objects.get(id=school)
+        bill = Bill.objects.get(id=bill , school=school)
+        # data = json.loads(request.body)
+        amount = request.data.get('amount')
+        message = request.data.get('message')
+        print("comment", message)
+        if type == 'all':
+            students= Student.objects.filter(active = True, school=school)
+            for student in students:
+                StudentBill.objects.create(
+                    student = student,
+                    amount = amount,
+                    bill = bill,
+                    comment = message
+                )
+            return Response(status=status.HTTP_201_CREATED)
+        elif type =='single':
+            student = request.data.get('student')
+            student = Student.objects.get(id = student , active=True, school = school)
+            StudentBill.objects.create(
+                    student = student,
+                    amount = amount,
+                    bill = bill,
+                    comment = message
+                )
+            return Response(status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def get_bill_payment_list(request, bill, grade=None):
+    bill = Bill.objects.get(id=bill)
+    student_bills = StudentBill.objects.filter(bill=bill)
+
+    data = []
+    total_paid_sum = 0  # Initialize total_paid_sum here
+    expected_amount = StudentBill.objects.filter(bill=bill).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+    for student_bill in student_bills:
+        total_paid_amount = BillPayment.objects.filter(student_bill=student_bill).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+        if total_paid_amount == student_bill.amount:
+            data.append({
+                'bill': student_bill.bill.name,
+                'student_name': student_bill.student.name,
+                'admission_number': student_bill.student.admission_number,
+                'total_paid': total_paid_amount
+            })
+
+            total_paid_sum += total_paid_amount  # This line is now correctly placed
+    stats = {
+         'total_paid_sum': total_paid_sum,
+        'expected_amount': expected_amount,
+        'percentage_settled': round((total_paid_sum/expected_amount)*100,2)
+
+    }
+
+    data.append({
+        'stats': stats
+    })
+    return Response(data=data, status=status.HTTP_200_OK)
+
+
+         
+from decimal import Decimal
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def receipt_student_bill(request, billed_id,student, amount):
+    student = Student.objects.get(admission_number=student)
+    billed = StudentBill.objects.get(id=billed_id)
+    paid_amount = BillPayment.objects.filter(student_bill=billed).aggregate(total_amount=Sum('amount'))['total_amount'] or Decimal('0')
+    new_amount = Decimal(amount) + paid_amount
+    print("you are paying", amount , "new amount is", new_amount)
+    if new_amount > billed.amount:
+        paid=billed.amount-paid_amount
+        wallet = Decimal(amount)- Decimal(paid)
+        BillPayment.objects.create(
+            student_bill =billed,
+            amount = paid,
+            receipt_number = generate_receipt_number_for_random_use(request)
+        )
+        school = School.objects.get(id=request.user.school.id)
+        head = TransactionItem.objects.get(id=1)
+        Transaction.objects.create(
+                school = school,
+                type = 'revenue',
+                head = head,
+                amount = paid,
+                receipt_number = generate_receipt_number_for_random_use(request),
+                description = 'bill payment'
+            )
+        CarryForward.objects.create(student=student, amount=wallet)
+        return Response(status=status.HTTP_201_CREATED)
+        # print("Yes, overpaid")
+        # print("receipting", paid, "wallet goes this",wallet )
+    elif new_amount == billed.amount:
+        print("Clearing bill",amount)
+        BillPayment.objects.create(
+            student_bill =billed,
+            amount = amount,
+            receipt_number = generate_receipt_number_for_random_use(request)
+        )
+        school = School.objects.get(id=request.user.school.id)
+        head = TransactionItem.objects.get(id=1)
+        Transaction.objects.create(
+                school = school,
+                type = 'revenue',
+                head = head,
+                amount = amount,
+                receipt_number = generate_receipt_number_for_random_use(request),
+                description = 'bill payment'
+            )
+        return Response(status=status.HTTP_201_CREATED)
+    else:
+         print("paid only", amount)
+         BillPayment.objects.create(
+            student_bill =billed,
+            amount = amount,
+            receipt_number = generate_receipt_number_for_random_use(request)
+        )
+         school = School.objects.get(id=request.user.school.id)
+         head = TransactionItem.objects.get(id=1)
+         Transaction.objects.create(
+                school = school,
+                type = 'revenue',
+                head = head,
+                amount = amount,
+                receipt_number = generate_receipt_number_for_random_use(request),
+                description = 'bill payment'
+            )
+         return Response(status=status.HTTP_201_CREATED)
+    
+    
+
+
 
 
 

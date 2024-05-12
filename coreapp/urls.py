@@ -79,7 +79,18 @@ urlpatterns = [
     path('all/financial/our/school/stats/revenues-expenditure/for/year/<int:year>' , views.revenue_vs_expenditure),
     path('all/financial/mykid/fee/statements/<str:year>/<str:term>/<str:fee>/<str:grade>/<str:student>', views.get_my_kid_fee_statements),
     path('all/financials/our/school/ledger/items/stats' , views.calculate_transaction_item_amounts),
+    path('all/financials/our/school/ledger/items/stats/<str:start_date>/<str:end_date>' , views.calculate_transaction_item_amounts),
     path('all/financials/our/school/ledger/items/sort/ranges/dates' , views.get_transaction_dates),
+    path('all/financials/our/school/bills/' , views.PayableBill.as_view()),
+    path('all/financials/our/school/bills/<str:academic_year>/<str:term>' , views.PayableBill.as_view()),
+    path('all/financials/our/school/bills/<str:bill>' , views.get_my_school_student_bill),
+    path('all/financials/our/school/students/billed/<str:bill>/<str:grade>' , views.StudentBilled.as_view()),
+    path('all/financials/our/school/students/billed/<str:bill>' , views.StudentBilled.as_view()),
+    path('all/financials/our/school/students/billed/<str:type>/<str:bill>/' , views.StudentBilled.as_view()),
+    path('all/financials/our/school/students/pay/bills/<str:billed_id>/<str:student>/<str:amount>' , views.receipt_student_bill),
+    path('all/financials/our/school/students/bill/payment/list/<str:bill>/<str:grade>/' , views.get_bill_payment_list),
+    path('all/financials/our/school/students/bill/payment/list/<str:bill>/' , views.get_bill_payment_list),
+    
 
 
     #others

@@ -270,3 +270,24 @@ class Notification(models.Model):
      message = models.TextField()
      time = models.DateTimeField(auto_now_add=True)
      is_read = models.BooleanField(default=False)
+
+class Bill(models.Model):
+     name = models.CharField(max_length=100)
+     Academic_year = models.ForeignKey(AcademicYear , on_delete=models.CASCADE)
+     term = models.ForeignKey(Term , on_delete=models.CASCADE)
+     school = models.ForeignKey(School , on_delete=models.CASCADE)
+     amount = models.DecimalField(max_digits=10, decimal_places=2 , default=0)
+     comment = models.TextField(null=True , blank=True)
+
+class StudentBill(models.Model):
+     student = models.ForeignKey(Student, on_delete=models.CASCADE)
+     bill = models.ForeignKey(Bill, on_delete=models.CASCADE)
+     amount = models.DecimalField(max_digits=10, decimal_places=2)
+     comment = models.TextField(null=True , blank=True)
+     
+     
+class BillPayment(models.Model):
+     student_bill = models.ForeignKey(StudentBill, on_delete=models.CASCADE)
+     amount = models.DecimalField(max_digits=10, decimal_places=2)
+     receipt_number = models.CharField(max_length=100)
+     payment_date = models.DateTimeField(auto_now_add=True)
