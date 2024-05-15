@@ -571,9 +571,9 @@ class BulkInsertMarksView(APIView):
         if curriculum == 'CBC':
             if 80 <= score <= 100:
                 return 'EE'
-            elif 60 <= score < 80:
+            elif 50 <= score < 79:
                 return 'ME'
-            elif 40 <= score < 60:
+            elif 30 <= score < 49:
                 return 'AE'
             else:
                 return 'BE'

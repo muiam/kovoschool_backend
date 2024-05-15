@@ -63,8 +63,12 @@ class Level(models.Model):
 class Student(models.Model):
     admission_number = models.CharField(max_length = 20)
     name = models.CharField(max_length= 100 , null =True ,blank = True)
+    gender = models.CharField(max_length=30 , null=True , blank=True)
     school = models.ForeignKey(School, on_delete=models.CASCADE)
     parent = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'type': 'parent'})
+    county = models.CharField(max_length=90 , null=True , blank=True)
+    constituency = models.CharField(max_length=90 , null=True , blank=True)
+    ward = models.CharField(max_length=90 , null= True , blank=True)
     active = models.BooleanField(default=True)
     curriculum = models.ForeignKey(Curriculum , on_delete=models.CharField )
     current_level = models.ForeignKey(Level, on_delete = models.CASCADE)
