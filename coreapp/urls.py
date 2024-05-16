@@ -90,6 +90,7 @@ urlpatterns = [
     path('all/financials/our/school/students/pay/bills/<str:billed_id>/<str:student>/<str:amount>' , views.receipt_student_bill),
     path('all/financials/our/school/students/bill/payment/list/<str:bill>/<str:grade>/' , views.get_bill_payment_list),
     path('all/financials/our/school/students/bill/payment/list/<str:bill>/' , views.get_bill_payment_list),
+    path('all/financials/our/school/students/bill/payment/statements/<str:bill>/' , views.get_bill_payment_statements),
     
 
 

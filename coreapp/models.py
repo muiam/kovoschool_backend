@@ -294,4 +294,5 @@ class BillPayment(models.Model):
      student_bill = models.ForeignKey(StudentBill, on_delete=models.CASCADE)
      amount = models.DecimalField(max_digits=10, decimal_places=2)
      receipt_number = models.CharField(max_length=100)
-     payment_date = models.DateTimeField(auto_now_add=True)
+     payment_date = models.DateField(auto_now_add=True)
+   

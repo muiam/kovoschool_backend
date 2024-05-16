@@ -2441,7 +2441,6 @@ class StudentBilled(APIView):
                 )
             return Response(status=status.HTTP_201_CREATED)
 
-
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsFinance])
@@ -2449,31 +2448,32 @@ def get_bill_payment_list(request, bill, grade=None):
     bill = Bill.objects.get(id=bill)
     student_bills = StudentBill.objects.filter(bill=bill)
 
-    data = []
+    payments_data = []
     total_paid_sum = 0  # Initialize total_paid_sum here
     expected_amount = StudentBill.objects.filter(bill=bill).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
     for student_bill in student_bills:
         total_paid_amount = BillPayment.objects.filter(student_bill=student_bill).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
         if total_paid_amount == student_bill.amount:
-            data.append({
+            payment ={
                 'bill': student_bill.bill.name,
                 'student_name': student_bill.student.name,
                 'admission_number': student_bill.student.admission_number,
                 'total_paid': total_paid_amount
-            })
-
+            }
+            payments_data.append(payment)
             total_paid_sum += total_paid_amount  # This line is now correctly placed
+    
     stats = {
-         'total_paid_sum': total_paid_sum,
+        'total_paid_sum': total_paid_sum,
         'expected_amount': expected_amount,
-        'percentage_settled': round((total_paid_sum/expected_amount)*100,2)
-
+        'percentage_settled': round((total_paid_sum/expected_amount)*100, 2)
     }
 
-    data.append({
+    response_data = {
+        'payments': payments_data,
         'stats': stats
-    })
-    return Response(data=data, status=status.HTTP_200_OK)
+    }
+    return Response(data=response_data, status=status.HTTP_200_OK)
 
 
          
@@ -2528,7 +2528,7 @@ def receipt_student_bill(request, billed_id,student, amount):
             )
         return Response(status=status.HTTP_201_CREATED)
     else:
-         print("paid only", amount)
+         
          BillPayment.objects.create(
             student_bill =billed,
             amount = amount,
@@ -2546,11 +2546,30 @@ def receipt_student_bill(request, billed_id,student, amount):
             )
          return Response(status=status.HTTP_201_CREATED)
     
-    
 
-
-
-
-
-
-
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsFinance])
+def get_bill_payment_statements(request, bill):
+    bill = Bill.objects.get(id=bill)
+    student_bills = StudentBill.objects.filter(bill=bill)
+    data = []
+    amount = 0
+    for student_bill in student_bills:
+        student_statements = BillPayment.objects.filter(student_bill=student_bill)
+        for statement in student_statements:
+            statement_data ={
+                'bill' : statement.student_bill.bill.name,
+                'student_admission_number': statement.student_bill.student.admission_number,
+                'student_name' : statement.student_bill.student.name,
+                'amount': statement.amount,
+                'receipt_number':statement.receipt_number,
+                'payment_date':statement.payment_date
+            }
+            data.append(statement_data)
+            amount += statement.amount
+    statements_summary ={
+        'payments' : data,
+        'total_amount_in_statements': amount
+    }
+    return Response( data=statements_summary ,status=status.HTTP_200_OK)
