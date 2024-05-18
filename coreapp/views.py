@@ -91,7 +91,7 @@ class RegisterTeacher(APIView):
 
 class RegisterParent(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsHeadTeacher]
+    permission_classes = [IsAllUsers]
     def post(self, request, format=None):
         try:
 

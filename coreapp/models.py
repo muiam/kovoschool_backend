@@ -23,12 +23,17 @@ class School (models.Model):
 
 class User(AbstractUser):
     username = None
-    email = models.EmailField(unique =True)
+    email = models.EmailField(unique =True , blank=True , null=True)
     first_name = models.CharField(max_length=30)
     second_name = models.CharField(max_length=20)
     employee_id= models.CharField(max_length=50)
     phone_number= models.CharField(max_length=50)
     gross_salary= models.CharField(max_length=50)
+    gender = models.CharField(max_length=50)
+    county = models.CharField(max_length=90 , null=True , blank=True)
+    constituency = models.CharField(max_length=90 , null=True , blank=True)
+    ward = models.CharField(max_length=90 , null= True , blank=True)
+
     type_Choices = (
         ('headTeacher' , 'headTeacher'),
         ('teacher', 'teacher'),

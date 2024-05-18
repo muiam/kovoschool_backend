@@ -375,8 +375,8 @@ class RegisterTeacherSerializer(serializers.ModelSerializer):
 class RegisterParentSerializer(serializers.ModelSerializer):
         class Meta:
             model = User
-            fields = ['email', 'password', 'first_name', 'last_name' ,'school','type']
-            extra_kwargs = {'password': {'required': True}}
+            fields = ['email', 'password', 'first_name', 'last_name' ,'school','type','phone_number','gender']
+            extra_kwargs = {'email': {'required': False}, 'password': {'required': True}}
 
 
         def validate_email(self, value):
