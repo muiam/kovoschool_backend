@@ -1020,8 +1020,8 @@ def get_month(request):
 @permission_classes([IsFinance])
 def all_employees(request):
     school =request.user.school.id
-    allEmployees = User.objects.filter(school =school , is_active = True)
-    serializedData = UserSerializer(allEmployees,many =True)
+    all_employees = User.objects.filter(Q(school=school) & Q(is_active=True) & ~Q(type='parent'))
+    serializedData = UserSerializer(all_employees,many =True)
     return Response(serializedData.data , status=status.HTTP_200_OK)
 
 @api_view(["GET"])
