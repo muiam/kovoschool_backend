@@ -2297,7 +2297,7 @@ def get_revenue_items(request):
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsFinance])
 def get_expenses_items(request):
-    expense = TransactionItem.objects.filter(type='expense')
+    expense = TransactionItem.objects.filter(type='expenditure')
     serializer = TransactionItemSerializer(expense, many=True)
     return Response(data =serializer.data , status=status.HTTP_200_OK)
 
