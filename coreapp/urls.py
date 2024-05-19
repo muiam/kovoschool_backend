@@ -91,6 +91,9 @@ urlpatterns = [
     path('all/financials/our/school/students/bill/payment/list/<str:bill>/<str:grade>/' , views.get_bill_payment_list),
     path('all/financials/our/school/students/bill/payment/list/<str:bill>/' , views.get_bill_payment_list),
     path('all/financials/our/school/students/bill/payment/statements/<str:bill>/' , views.get_bill_payment_statements),
+    path('all/financials/payments/fee/pay/get_access_token', views.get_access_token),
+    path('all/financials/payments/fee/pay/stk-push', views.initiate_stk_push),
+     path('all/financials/payments/fee/mpesa/callback', views.process_stk_callback),
     
 
 

@@ -28,7 +28,9 @@ from django.utils.html import strip_tags
 from . import models
 from django.utils.dateparse import parse_date
 from django.db.models.functions import TruncDate
-
+import requests
+import base64
+from rest_framework.request import Request
 # Create your views here.
 
 @api_view(['GET'])
@@ -2573,3 +2575,93 @@ def get_bill_payment_statements(request, bill):
         'total_amount_in_statements': amount
     }
     return Response( data=statements_summary ,status=status.HTTP_200_OK)
+
+def get_access_token(request):
+    consumer_key = "u3K648nnaMX5A9R52GUtf1fC4Z5CN84fM2bVE5sOBahILXlv"  # Fill with your app Consumer Key
+    consumer_secret = "SITp1vA8MPk7jPQ9tBoOQVxu6SZcf1Ct8AP7YpZOBdXb5j2R3tG4lQy0qJKRcegF"  # Fill with your app 
+    access_token_url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+    headers = {'Content-Type': 'application/json'}
+    auth = (consumer_key, consumer_secret)
+    try:
+        response = requests.get(access_token_url, headers=headers, auth=auth)
+        response.raise_for_status()  # Raise exception for non-2xx status codes
+        result = response.json()
+        access_token = result['access_token']
+        return Response({'access_token': access_token}, status=status.HTTP_200_OK)
+    except requests.exceptions.RequestException as e:
+        return Response({'error': str(e)}, status=status.HTTP_403_FORBIDDEN)
+    
+    
+    
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAllUsers])
+def initiate_stk_push(request):
+    access_token_response = get_access_token(request)
+    if access_token_response.status_code == status.HTTP_200_OK:
+        access_token = access_token_response.data['access_token']
+        amount = 1
+        phone = "254714457130"
+        process_request_url = 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
+        callback_url = 'https://kovoschool-backend.vercel.app/api/all/financials/payments/fee/mpesa/callback'
+        passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
+        business_short_code = '174379'
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        password = base64.b64encode((business_short_code + passkey + timestamp).encode()).decode()
+        party_a = phone
+        account_reference = 'AD12345'
+        transaction_desc = 'payment of fees'
+        stk_push_headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + access_token
+        }
+        
+        stk_push_payload = {
+            'BusinessShortCode': business_short_code,
+            'Password': password,
+            'Timestamp': timestamp,
+            'TransactionType': 'CustomerPayBillOnline',
+            'Amount': amount,
+            'PartyA': party_a,
+            'PartyB': business_short_code,
+            'PhoneNumber': party_a,
+            'CallBackURL': callback_url,
+            'AccountReference': account_reference,
+            'TransactionDesc': transaction_desc
+        }
+
+        try:
+            response = requests.post(process_request_url, headers=stk_push_headers, json=stk_push_payload)
+            response.raise_for_status()  # Raise exception for non-2xx status codes
+            response_data = response.json()
+            checkout_request_id = response_data['CheckoutRequestID']
+            response_code = response_data['ResponseCode']
+            if response_code == "0":
+                return Response({'CheckoutRequestID': checkout_request_id}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'STK push failed.', 'details': response_data}, status=status.HTTP_400_BAD_REQUEST)
+        except requests.exceptions.RequestException as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    else:
+        return Response({'error': 'Failed to retrieve access token.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAllUsers])
+def process_stk_callback(request):
+    stk_callback_response = json.loads(request.body)
+    log_file = "Mpesastkresponse.json"
+    with open(log_file, "a") as log:
+        json.dump(stk_callback_response, log)
+    
+    merchant_request_id = stk_callback_response['Body']['stkCallback']['MerchantRequestID']
+    checkout_request_id = stk_callback_response['Body']['stkCallback']['CheckoutRequestID']
+    result_code = stk_callback_response['Body']['stkCallback']['ResultCode']
+    result_desc = stk_callback_response['Body']['stkCallback']['ResultDesc']
+    amount = stk_callback_response['Body']['stkCallback']['CallbackMetadata']['Item'][0]['Value']
+    transaction_id = stk_callback_response['Body']['stkCallback']['CallbackMetadata']['Item'][1]['Value']
+    user_phone_number = stk_callback_response['Body']['stkCallback']['CallbackMetadata']['Item'][4]['Value']
+    
+    if result_code == 0:
+        pass
