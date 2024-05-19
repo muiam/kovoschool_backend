@@ -2664,4 +2664,4 @@ def process_stk_callback(request):
     user_phone_number = stk_callback_response['Body']['stkCallback']['CallbackMetadata']['Item'][4]['Value']
     
     if result_code == 0:
-        pass
+        print(merchant_request_id , checkout_request_id , result_code, result_desc, amount, transaction_id,user_phone_number)
