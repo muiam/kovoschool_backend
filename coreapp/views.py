@@ -2647,8 +2647,6 @@ def initiate_stk_push(request):
 
 
 @api_view(["GET"])
-@authentication_classes([JWTAuthentication])
-@permission_classes([IsAllUsers])
 def process_stk_callback(request):
     stk_callback_response = json.loads(request.body)
     log_file = "Mpesastkresponse.json"
