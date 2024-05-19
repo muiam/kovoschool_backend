@@ -9,7 +9,7 @@ from kovo_school import settings
 from .permissions import IsAllExceptParent, IsAllUsers, IsFinance, IsHeadTeacher, IsHeadTeacherOrTeacher, IsParent, IsTeacher
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .models import AcademicYear, Bill, BillPayment, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, Notification, Payslip, School, Student, StudentBill, Subject, TeacherSubject, Term, Transaction, TransactionItem, User, Week, Year, Report
+from .models import AcademicYear, Bill, BillPayment, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, MpesaPayments, Notification, Payslip, School, Student, StudentBill, Subject, TeacherSubject, Term, Transaction, TransactionItem, User, Week, Year, Report
 from django.contrib.auth import logout
 
 from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, BillSerializer, CarryFowardSerializer, ChangePasswordSerializer, CurriculumSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentBillSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionItemSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
@@ -2664,4 +2664,13 @@ def process_stk_callback(request):
     user_phone_number = stk_callback_response['Body']['stkCallback']['CallbackMetadata']['Item'][4]['Value']
     
     if result_code == 0:
-        print(merchant_request_id , checkout_request_id , result_code, result_desc, amount, transaction_id,user_phone_number)
+        MpesaPayments.objects.create(
+            merchant_request_id = merchant_request_id,
+            checkout_request_id = checkout_request_id,
+            result_code=result_code,
+            result_desc = result_desc,
+            amount = amount,
+            transaction_id= transaction_id,
+            user_phone_number=user_phone_number
+            
+        )
