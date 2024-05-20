@@ -1,6 +1,6 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import AcademicYear, Bill, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, Level, Month, Notification, Payslip, Report, Student, StudentBill, Subject, TeacherSubject, Term, Transaction, TransactionItem, User, Week, Year
+from .models import AcademicYear, Bill, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, Level, Month, Notification, Payslip, Report, School, Student, StudentBill, Subject, TeacherSubject, Term, Transaction, TransactionItem, User, Week, Year
 from rest_framework import serializers
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -370,7 +370,22 @@ class RegisterTeacherSerializer(serializers.ModelSerializer):
             # user.save()
             return user
         
-
+class RegisterSchoolSerializer(serializers.Serializer):
+     class Meta:
+            model = School
+            fields = '__all__'
+            extra_kwargs = {'name': {'required': True}, 'head_teacher': {'required': True}, 'school_email': {'required': True}}
+            
+     def validate(self, data):
+            # Custom validation logic
+        if not data.get('name') or not data.get('head_teacher') or not data.get('school_email'):
+            raise serializers.ValidationError("All fields are required.")
+        return data
+     
+     def create(self, validated_data):
+            # Create a new instance of the model with the validated data
+        return School.objects.create(**validated_data)
+        
 
 class RegisterParentSerializer(serializers.ModelSerializer):
         class Meta:

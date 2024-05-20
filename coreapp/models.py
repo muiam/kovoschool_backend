@@ -9,13 +9,14 @@ from django.utils import timezone as payslipTime
 
 
 class School (models.Model):
-    name = models.CharField(max_length = 100)
-    level_Choices = (
-        ('primary' , 'primary'),
-        ('secondary', 'secondary')
-
-    )
-    category_level = models.CharField(max_length =20 ,choices =level_Choices, default= "primary", blank =True ,null =True)
+    name = models.CharField(max_length = 100 , null=False , blank=False)
+    head_teacher = models.CharField(max_length = 100, null=False , blank=False)
+    school_email = models.EmailField(max_length=30, null=False , blank=False)
+    population = models.CharField(max_length=10)
+    curriculum = models.CharField(max_length = 100)
+    county = models.CharField(max_length=90 , null=True , blank=True)
+    constituency = models.CharField(max_length=90 , null=True , blank=True)
+    ward = models.CharField(max_length=90 , null= True , blank=True)
     active = models.BooleanField(default =False)
 
     def __str__(self) -> str:
@@ -309,5 +310,7 @@ class MpesaPayments (models.Model):
      amount = models.DecimalField(max_digits=10 , decimal_places=2)
      transaction_id = models.CharField(max_length=30)
      user_phone_number = models.CharField(max_length=15)
+
+    
      
    

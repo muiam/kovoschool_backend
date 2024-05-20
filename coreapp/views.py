@@ -12,7 +12,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from .models import AcademicYear, Bill, BillPayment, CarryForward, Curriculum, Exam, ExamResult, Fee, FeeBalance, FeePayment, Level, Month, MpesaPayments, Notification, Payslip, School, Student, StudentBill, Subject, TeacherSubject, Term, Transaction, TransactionItem, User, Week, Year, Report
 from django.contrib.auth import logout
 
-from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, BillSerializer, CarryFowardSerializer, ChangePasswordSerializer, CurriculumSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentBillSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionItemSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
+from .serializers import AcademicYearsSerializer, AssignedSubjectSerializer, BillSerializer, CarryFowardSerializer, ChangePasswordSerializer, CurriculumSerializer, ExamQueryStudentsSerializer, ExamResultCompareSerializer, ExamResultsSerializer, ExamSerializer, FeeBalanceSerializer, FeeSerializer, GetStudentForMarksSerializer, LevelSerializer, MonthsSerializer, MyReportSerilaizer, MyTokenObtainPairSerializer, NotificationSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, PaySlipSerializer, PayslipsSerializer, RegisterParentSerializer, RegisterSchoolSerializer, RegisterStudentSerializer, RegisterTeacherSerializer, ReportSerializer, StudentBillSerializer, StudentSerializer, SubjectSerializer, TeacherSubjectSerializer, TermSerializer, TransactionItemSerializer, TransactionSerializer,UserSerializer, WeekSerializer, YearsSerializer, NewPaySlipSerializer
 from rest_framework import status
 from django.db.models import Q
 from django.db.models import Count,Sum,F,IntegerField
@@ -2672,3 +2672,17 @@ def process_stk_callback(request):
             user_phone_number=user_phone_number
             
         )
+
+
+
+class School(APIView): 
+    def post(self, request, format=None):
+        serializer = RegisterSchoolSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data , status=status.HTTP_201_CREATED)
+        print(serializer.errors)
+    
+        
+        return Response(serializer.errors , status=status.HTTP_400_BAD_REQUEST)
+    

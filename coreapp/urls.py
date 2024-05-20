@@ -19,6 +19,7 @@ urlpatterns = [
     path('actions/stats/all/teacher/items' , views.get_teacher_stats),
     path('actions/all/financials/items/revenue' ,views.get_revenue_items ),
     path('actions/all/financials/items/expense' , views.get_expenses_items),
+    path('actions/school' , views.School.as_view()),
    
 
    
