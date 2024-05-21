@@ -2675,14 +2675,12 @@ def process_stk_callback(request):
 
 
 
-class School(APIView): 
+class School(APIView):
     def post(self, request, format=None):
-        serializer = RegisterSchoolSerializer(data=request.data, context={'request': request})
+        print("Received data:", request.data)  # Log incoming data
+        serializer = RegisterSchoolSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data , status=status.HTTP_201_CREATED)
-        print(serializer.errors)
-    
-        
-        return Response(serializer.errors , status=status.HTTP_400_BAD_REQUEST)
-    
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        print("Validation errors:", serializer.errors)  # Log validation errors
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

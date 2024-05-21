@@ -370,22 +370,20 @@ class RegisterTeacherSerializer(serializers.ModelSerializer):
             # user.save()
             return user
         
-class RegisterSchoolSerializer(serializers.Serializer):
-     class Meta:
-            model = School
-            fields = '__all__'
-            extra_kwargs = {'name': {'required': True}, 'head_teacher': {'required': True}, 'school_email': {'required': True}}
-            
-     def validate(self, data):
-            # Custom validation logic
+class RegisterSchoolSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = School
+        fields = '__all__'
+        
+    def validate(self, data):
+        # Custom validation logic
         if not data.get('name') or not data.get('head_teacher') or not data.get('school_email'):
             raise serializers.ValidationError("All fields are required.")
         return data
-     
-     def create(self, validated_data):
-            # Create a new instance of the model with the validated data
+
+    def create(self, validated_data):
+        # Create a new instance of the model with the validated data
         return School.objects.create(**validated_data)
-        
 
 class RegisterParentSerializer(serializers.ModelSerializer):
         class Meta:
