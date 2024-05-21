@@ -12,12 +12,13 @@ class School (models.Model):
     name = models.CharField(max_length = 100 , null=False , blank=False)
     head_teacher = models.CharField(max_length = 100, null=False , blank=False)
     school_email = models.EmailField(max_length=30, null=False , blank=False)
-    population = models.CharField(max_length=10)
-    curriculum = models.CharField(max_length = 100)
+    population = models.CharField(max_length=10 , null=True , blank=True)
+    curriculum = models.CharField(max_length = 100 , null=True , blank=True)
     county = models.CharField(max_length=90 , null=True , blank=True)
     constituency = models.CharField(max_length=90 , null=True , blank=True)
     ward = models.CharField(max_length=90 , null= True , blank=True)
     active = models.BooleanField(default =False)
+    note = models.TextField(null=True , blank=True)
 
     def __str__(self) -> str:
         return self.name
