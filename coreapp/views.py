@@ -1310,6 +1310,7 @@ def fee_payment_direct(request):
         academic_year = AcademicYear.objects.get(pk=academic_year_id)
         term = Term.objects.get(pk=term_id)
         school = request.user.school.id
+        school = School.objects.get(id=school)
         fee_paid_for = Fee.objects.get(id= fee_id , school=school,  level =level_id , academic_year =academic_year ,term=term)
         total_paid = FeePayment.objects.filter(
             student = student,
@@ -1333,7 +1334,6 @@ def fee_payment_direct(request):
             term=term,
             overpay = overpay
             )
-            school = School.objects.get(id=request.user.school.id)
             head = TransactionItem.objects.get(id=1)
             Transaction.objects.create(
                 school = school,
@@ -2675,7 +2675,7 @@ def process_stk_callback(request):
 
 
 
-class School(APIView):
+class Our_school(APIView):
     def post(self, request, format=None):
         print("Received data:", request.data)  # Log incoming data
         serializer = RegisterSchoolSerializer(data=request.data)
