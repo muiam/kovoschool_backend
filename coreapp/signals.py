@@ -20,19 +20,6 @@ def close_academic_year(sender, instance, **kwargs):
                 student.current_level = next_level
                 try:
                     student.save()
-                    fees_total = Fee.objects.filter(academic_year=instance, school=instance.school, level=student.current_level).aggregate(total_amount=Sum('amount'))
-                    paid_total = FeePayment.objects.filter(academic_year=instance, student= student, level=student.current_level).aggregate(total_paid_amount=Sum('amount_paid'))
-                    total_amount = fees_total['total_amount'] if fees_total['total_amount'] else 0
-                    total_paid = paid_total['total_paid_amount'] if paid_total['total_paid_amount'] else 0
-                    balance = total_amount - total_paid
-                    if balance>0:
-                        FeeBalance.objects.create(
-                            school=instance.school,
-                            student = student,
-                            academic_year =instance,
-                            level = student.current_level,
-                            amount = balance
-                        )
                 except Exception as e:
                     print(f"Failed to promote student: {student}. Error: {e}")
             else:

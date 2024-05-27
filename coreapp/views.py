@@ -1245,6 +1245,21 @@ def fee_payment_over(request):
                 receipt_number = receipt_number,
                 description = 'student fee'
             )
+            feebalance = FeeBalance.objects.get(academic_year = academic_year , student = student)
+            if feebalance.amount - paid <=0:
+                feebalance.student = student
+                feebalance.school = school
+                feebalance.academic_year = academic_year
+                feebalance.amount = 0
+                feebalance.paid = True
+                feebalance.save()
+
+            else:
+                feebalance.amount = feebalance.amount - paid
+                feebalance.student = student
+                feebalance.school = school
+                feebalance.academic_year = academic_year
+                feebalance.save()
             
         try:
             total_unused_amount = CarryForward.objects.get(student=student)
@@ -1272,6 +1287,21 @@ def fee_payment_over(request):
                 receipt_number = receipt_number,
                 description = 'student fee'
             )
+            feebalance = FeeBalance.objects.get(academic_year = academic_year , student = student)
+            if feebalance.amount - amount_paid <=0:
+                feebalance.student = student
+                feebalance.school = school
+                feebalance.academic_year = academic_year
+                feebalance.amount = 0
+                feebalance.paid = True
+                feebalance.save()
+
+            else:
+                feebalance.amount = feebalance.amount - amount_paid
+                feebalance.student = student
+                feebalance.school = school
+                feebalance.academic_year = academic_year
+                feebalance.save()
            
             try:
                 total_unused_amount = CarryForward.objects.get(student=student)
@@ -1343,6 +1373,23 @@ def fee_payment_direct(request):
                 receipt_number = receipt_number,
                 description = 'student fee'
             )
+            feebalance = FeeBalance.objects.get(academic_year = academic_year , student = student)
+            if feebalance.amount - paid <=0:
+                feebalance.student = student
+                feebalance.school = school
+                feebalance.academic_year = academic_year
+                feebalance.amount = 0
+                feebalance.paid = True
+                feebalance.save()
+
+            else:
+                feebalance.amount = feebalance.amount - paid
+                feebalance.student = student
+                feebalance.school = school
+                feebalance.academic_year = academic_year
+                feebalance.save()
+
+            
             try:
                 total_unused_amount = CarryForward.objects.get(student=student)
                 total_unused_amount.amount = overpay
@@ -1370,6 +1417,22 @@ def fee_payment_direct(request):
                 receipt_number = receipt_number,
                 description = 'student fee'
             )
+            feebalance = FeeBalance.objects.get(academic_year = academic_year , student = student)
+            if feebalance.amount - amount_paid <=0:
+                feebalance.student = student
+                feebalance.school = school
+                feebalance.academic_year = academic_year
+                feebalance.amount = 0
+                feebalance.paid = True
+                feebalance.save()
+
+            else:
+                feebalance.amount = feebalance.amount - amount_paid
+                feebalance.student = student
+                feebalance.school = school
+                feebalance.academic_year = academic_year
+                feebalance.save()
+
             return Response(status=status.HTTP_201_CREATED)
 
 
@@ -1558,7 +1621,7 @@ def all_get_fee_balances(request,year, level=None):
     academic_year_name = AcademicYear.objects.get(school=school, id=year)
     academic_year_name = academic_year_name.name
     if level is not None:
-        fee = FeeBalance.objects.filter(school=school, academic_year=year, paid=False, level=level)
+        fee = FeeBalance.objects.filter(school=school, academic_year=year, paid=False, student__current_level=level)
     else:
         fee = FeeBalance.objects.filter(school=school, academic_year=year, paid=False)
     total_amount = fee.aggregate(total_amount=Sum('amount'))['total_amount'] or 0
@@ -1908,8 +1971,30 @@ def get_add_school_fee(request):
         academic_year = academic_year,
         amount = amount
     )
-    
-    return Response(status=status.HTTP_201_CREATED)
+   
+    try:
+        students = Student.objects.filter(current_level=level, school=school_id)
+        fee_balances = FeeBalance.objects.filter(academic_year=academic_year, student__in=students)
+
+        for student in students:
+            student_fee_balances = [fb for fb in fee_balances if fb.student == student]
+            if student_fee_balances:
+                for feebalance in student_fee_balances:
+                    feebalance.amount = feebalance.amount+amount
+                    feebalance.save()
+            else:
+                FeeBalance.objects.create(
+                    school =school_id,
+                    academic_year=academic_year,
+                    student=student,
+                    amount=amount,
+                )
+        return Response(status=status.HTTP_201_CREATED)
+    except Exception as e:
+        print(str(e))
+        return Response(data={'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 from django.db.models.functions import ExtractMonth
 from django.http import JsonResponse

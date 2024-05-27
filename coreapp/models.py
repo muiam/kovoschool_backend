@@ -73,26 +73,6 @@ class Level(models.Model):
         else :
             return f'{self.name}'
 
-class Student(models.Model):
-    admission_number = models.CharField(max_length = 20)
-    name = models.CharField(max_length= 100 , null =True ,blank = True)
-    gender = models.CharField(max_length=30 , null=True , blank=True)
-    school = models.ForeignKey(School, on_delete=models.CASCADE)
-    parent = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'type': 'parent'})
-    county = models.CharField(max_length=90 , null=True , blank=True)
-    constituency = models.CharField(max_length=90 , null=True , blank=True)
-    ward = models.CharField(max_length=90 , null= True , blank=True)
-    active = models.BooleanField(default=True)
-    curriculum = models.ForeignKey(Curriculum , on_delete=models.CharField )
-    current_level = models.ForeignKey(Level, on_delete = models.CASCADE)
-
-
-    class Meta:
-         unique_together = ('admission_number', 'school')
-
-    def __str__(self):
-        return f'{self.admission_number}'
-
 class Subject(models.Model):
     name =models.CharField(max_length = 50)
     school = models.ForeignKey(School, on_delete=models.CASCADE)
@@ -124,6 +104,7 @@ class AcademicYear(models.Model):
     duration_days = models.IntegerField()  # Field for specifying the duration in days
     end_date = models.DateField(null=True , blank=True)  # Add field for end date
     active = models.BooleanField(default=True)
+    current =models.BooleanField(default=True)
 
 
     def __str__(self):
@@ -140,8 +121,31 @@ class Term (models.Model):
     name = models.CharField(max_length = 20)
     year = models.ForeignKey(AcademicYear , on_delete = models.CASCADE)
     status = models.BooleanField(default = True)
+    current =models.BooleanField(default=True)
     def __str__(self):
             return f'{self.name}'
+    
+class Student(models.Model):
+    admission_number = models.CharField(max_length = 20)
+    name = models.CharField(max_length= 100 , null =True ,blank = True)
+    gender = models.CharField(max_length=30 , null=True , blank=True)
+    school = models.ForeignKey(School, on_delete=models.CASCADE)
+    parent = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'type': 'parent'})
+    county = models.CharField(max_length=90 , null=True , blank=True)
+    constituency = models.CharField(max_length=90 , null=True , blank=True)
+    ward = models.CharField(max_length=90 , null= True , blank=True)
+    active = models.BooleanField(default=True)
+    curriculum = models.ForeignKey(Curriculum , on_delete=models.CharField )
+    academic_year = models.ForeignKey(AcademicYear , on_delete=models.DO_NOTHING , null=True , blank=True)
+    term = models.ForeignKey(Term , on_delete=models.DO_NOTHING, null=True ,blank=True)    
+    current_level = models.ForeignKey(Level, on_delete = models.CASCADE)
+
+
+    class Meta:
+         unique_together = ('admission_number', 'school')
+
+    def __str__(self):
+        return f'{self.admission_number}'
     
 class Fee(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE)
@@ -154,16 +158,14 @@ class Fee(models.Model):
 
     def __str__(self):
             return f'{self.level.name} {self.term.name} {self.term.name} {self.academic_year.name} {self.amount}'
-
 class FeeBalance(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE)
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
-    level = models.ForeignKey(Level, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     paid = models.BooleanField(default=False)
     def __str__(self):
-        return f'{self.student} - {self.academic_year} -  - {self.level}--{self.amount}'
+        return f'{self.student} - {self.academic_year} --{self.amount}'
 
 class FeePayment(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)

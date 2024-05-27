@@ -143,7 +143,7 @@ class FeeSerializer(serializers.ModelSerializer):
 class FeeBalanceSerializer(serializers.ModelSerializer):
      academic_year_name = serializers.SerializerMethodField()
      student_name = serializers.SerializerMethodField()
-     level_name = serializers.SerializerMethodField()
+     student_level_name = serializers.SerializerMethodField()
 
      class Meta:
             model = FeeBalance
@@ -152,10 +152,12 @@ class FeeBalanceSerializer(serializers.ModelSerializer):
         return obj.academic_year.name
      def get_student_name(self,obj):
           return obj.student.name
-     def get_level_name(self,obj):
-             level = obj.level
+     def get_student_level_name(self,obj):
+             level = obj.student.current_level
              if level.stream :
-                    return f"{obj.level.name} {level.stream}" 
+                    return f"{level.name} {level.stream}" 
+             else:
+                    return f"{level.name}"
      
 
 class PayslipsSerializer(serializers.ModelSerializer):
