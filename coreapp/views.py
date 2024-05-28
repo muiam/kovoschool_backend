@@ -69,7 +69,7 @@ class RegisterTeacher(APIView):
                 user.set_password(plaintext_password)
                 user.set_password(plaintext_password)
                 #send an email
-                html_message = render_to_string('welcome_mail.html', {'user': user.first_name , 'school': request.user.school.name , 'password': plaintext_password})
+                html_message = render_to_string('welcome_mail.html', {'user': user.first_name , 'school': request.user.school.name , 'email': user.email, 'password': plaintext_password})
                 subject = 'Invitation to shulea'
                 from_email = settings.EMAIL_HOST_USER
                 to_email = user.email
@@ -111,7 +111,7 @@ class RegisterParent(APIView):
                 user = serializer.save()
                 user.set_password(plaintext_password)
                 #send an email
-                html_message = render_to_string('welcome_mail.html', {'user': user.first_name , 'school': request.user.school.name, 'password': plaintext_password})
+                html_message = render_to_string('welcome_mail.html', {'user': user.first_name , 'school': request.user.school.name, 'email': user.email,'password': plaintext_password})
                 subject = 'Invitation to shulea'
                 from_email = settings.EMAIL_HOST_USER
                 to_email = user.email
