@@ -64,9 +64,12 @@ class RegisterTeacher(APIView):
                 serializer.validated_data['school'] = current_user.school
                 serializer.validated_data['type'] = "teacher"
                 user = serializer.save()
-                user.set_password(serializer.validated_data['password'])
+                plaintext_password = serializer.validated_data['password']
+                user = serializer.save()
+                user.set_password(plaintext_password)
+                user.set_password(plaintext_password)
                 #send an email
-                html_message = render_to_string('welcome_mail.html', {'user': user.first_name , 'school': request.user.school.name})
+                html_message = render_to_string('welcome_mail.html', {'user': user.first_name , 'school': request.user.school.name , 'password': plaintext_password})
                 subject = 'Invitation to shulea'
                 from_email = settings.EMAIL_HOST_USER
                 to_email = user.email
@@ -104,10 +107,11 @@ class RegisterParent(APIView):
                 # Set the school of the new user to be the same as the school of the current user
                 serializer.validated_data['school'] = current_user.school
                 serializer.validated_data['type'] = "parent"
+                plaintext_password = serializer.validated_data['password']
                 user = serializer.save()
-                user.set_password(serializer.validated_data['password'])
+                user.set_password(plaintext_password)
                 #send an email
-                html_message = render_to_string('welcome_mail.html', {'user': user.first_name , 'school': request.user.school.name})
+                html_message = render_to_string('welcome_mail.html', {'user': user.first_name , 'school': request.user.school.name, 'password': plaintext_password})
                 subject = 'Invitation to shulea'
                 from_email = settings.EMAIL_HOST_USER
                 to_email = user.email
