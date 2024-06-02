@@ -302,7 +302,10 @@ class Exams (APIView):
         term_id = request.query_params.get('term')
         if not year_id:
             raise Http404("Year ID parameter is required")
-
+        if not term_id:
+             allExams = Exam.objects.filter(school =school,year =year_id).order_by('-id')
+        if not year_id and term_id:
+             allExams = Exam.objects.filter(school =school).order_by('-id')
         school =request.user.school.id
         allExams = Exam.objects.filter(school =school,term =term_id ,year =year_id).order_by('-id')
         serializedData = ExamSerializer(allExams,many =True)
@@ -1937,6 +1940,19 @@ def get_my_kid(request, level = None):
         serializer = StudentSerializer(students , many=True)
     
     return Response(data = serializer.data , status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsParent])
+def get_all_my_kid(request, level = None):
+    user = request.user
+    school = request.user.school.id
+    students = Student.objects.filter(school=school, parent = user)
+    serializer = StudentSerializer(students , many=True)
+    
+    return Response(data = serializer.data , status=status.HTTP_200_OK)
+
+
 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication])

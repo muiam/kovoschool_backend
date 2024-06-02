@@ -14,6 +14,7 @@ urlpatterns = [
     path('actions/free/subjects', views.FreeSubjects.as_view()),
     path('actions/my/student/level/<int:level>',views.get_my_kid),
     path('actions/my/student/',views.get_my_kid),
+    path('actions/all/my/students', views.get_all_my_kid),
     path('actions/all/school/staff/',views.all_school_members),
     path('actions/stats/all/members/count' , views.get_users_count),
     path('actions/stats/all/teacher/items' , views.get_teacher_stats),
