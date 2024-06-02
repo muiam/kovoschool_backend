@@ -33,9 +33,19 @@ class TermSerializer(serializers.ModelSerializer):
             model = Term
             fields = '__all__'
 class ExamSerializer(serializers.ModelSerializer):
+        term_name = serializers.SerializerMethodField()
+        year_name = serializers.SerializerMethodField()
         class Meta:
             model = Exam
             fields = '__all__'
+
+        def get_term_name(self, obj):
+            term = obj.term
+            return term.name
+        def get_year_name(self, obj):
+            year = obj.year
+            return year.name
+        
 class SubjectScoreSerializer(serializers.Serializer):
     subject_name = serializers.CharField()
     subject_score = serializers.IntegerField()
