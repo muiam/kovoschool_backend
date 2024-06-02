@@ -293,27 +293,28 @@ class Terms(APIView):
         allTerms = Term.objects.filter(year=year_id).order_by('-id')
         serializedData = TermSerializer(allTerms, many=True)
         return Response(serializedData.data, status=status.HTTP_200_OK)
-class Exams (APIView):
+    
+class Exams(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAllUsers]
-    
+
     def get(self, request):
+        school = request.user.school.id
         year_id = request.query_params.get('year')
         term_id = request.query_params.get('term')
+        
         if not year_id:
-            raise Http404("Year ID parameter is required")
-        if not term_id:
-             allExams = Exam.objects.filter(school =school,year =year_id).order_by('-id')
-        if not year_id and term_id:
-             allExams = Exam.objects.filter(school =school).order_by('-id')
-        school =request.user.school.id
-        allExams = Exam.objects.filter(school =school,term =term_id ,year =year_id).order_by('-id')
-        serializedData = ExamSerializer(allExams,many =True)
-        if allExams.exists():
-            print(serializedData.data)
-            return Response( data=serializedData.data, status=status.HTTP_200_OK)
+            allExams = Exam.objects.filter(school=school).order_by('-id')
+        elif not term_id:
+            allExams = Exam.objects.filter(school=school, year=year_id).order_by('-id')
         else:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            allExams = Exam.objects.filter(school=school, term=term_id, year=year_id).order_by('-id')
+        
+        serializedData = ExamSerializer(allExams, many=True)
+        if allExams.exists():
+            return Response(data=serializedData.data, status=status.HTTP_200_OK)
+        else:
+            return Response(data={'detail': 'No exams found'}, status=status.HTTP_404_NOT_FOUND)
 
     
 class Subjects(APIView):
