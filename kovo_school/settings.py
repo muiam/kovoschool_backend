@@ -105,8 +105,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'defaultdb',
         'USER': 'avnadmin',
-        'PASSWORD': 'AVNS_q4UtjjGhpvxtYPNgyvR',
-        'HOST': 'shulea-mwendwaharry01-677d.j.aivencloud.com',
+        'PASSWORD': 'AVNS_60PhnVKbNWpjkyY81xW',
+        'HOST': 'shulea-mwendwaharry01-677d.h.aivencloud.com',
         'PORT': '10702',
     }
 }
@@ -180,12 +180,12 @@ SIMPLE_JWT = {
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.zoho.com'
+EMAIL_HOST = "smtp-relay.brevo.com"
 EMAIL_PORT = 587
-EMAIL_HOST_USER = 'no-reply@shulea.com'
-EMAIL_HOST_PASSWORD = 'no-reply@shulea123@PasswordHard@Known@'
-EMAIL_USE_TLS = True
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_HOST_USER = "743a1c001@smtp-brevo.com"
+EMAIL_HOST_PASSWORD = 'P5a2FgrsYDK6EIwk'
+EMAIL_USE_TLS = False
+DEFAULT_FROM_EMAIL = "no-reply@mynest.co.ke"
 
 # no-reply@shulea123@PasswordHard@Known
 # no-reply@shulea.com
