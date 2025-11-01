@@ -29,7 +29,7 @@ DEBUG = False
 ALLOWED_HOSTS = ['kovoschool-backend.vercel.app', '127.0.0.1']
 
 CORS_ALLOWED_ORIGINS = [
-    "https://app.shulea.com","http://localhost:5173", "http://localhost:5174",
+    "https://app.shulea.com","http://localhost:5173", "http://localhost:5174","https://precious-zuccutto-4e9325.netlify.app"
 ]
 
 # Application definition
